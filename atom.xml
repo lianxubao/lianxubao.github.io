@@ -1,0 +1,783 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title><![CDATA[Xubao's blog]]></title>
+  <subtitle><![CDATA[所谓的成功只有一个，就是按照自己的方式去度过人生]]></subtitle>
+  <link href="/atom.xml" rel="self"/>
+  <link href="http://baogege.info/"/>
+  <updated>2016-05-07T12:49:34.470Z</updated>
+  <id>http://baogege.info/</id>
+  
+  <author>
+    <name><![CDATA[Xubao]]></name>
+    <email><![CDATA[lianxubao93176@163.com]]></email>
+  </author>
+  
+  <generator uri="http://zespia.tw/hexo/">Hexo</generator>
+  
+  <entry>
+    <title><![CDATA[使用HttpClient模拟登录百度账号]]></title>
+    <link href="http://baogege.info/2016/04/21/baidu-login-with-httpclient/"/>
+    <id>http://baogege.info/2016/04/21/baidu-login-with-httpclient/</id>
+    <published>2016-04-21T11:24:43.000Z</published>
+    <updated>2016-05-07T12:48:02.000Z</updated>
+    <content type="html"><![CDATA[<blockquote>
+<p>最近在做一个项目需要下载大量数据，因为下载过程中需要登录百度账号才能获得数据访问权限，所以需要使用程序模拟浏览器的账号登录行为，本人Java党，果断用HttpClient包，HttpClient是一个支持HTTP协议Java语言的开源工具包，可以通过它模拟各种浏览器的请求，相当于一个没有界面的浏览器。本文首先使用FireFox浏览器的FireBug插件监控登录过程的各个请求和参数生成过程，再使用HttpClient对参数进行封装并发送请求，最终实现登录。整个过程感谢CSDN中<a href="http://download.csdn.net/user/crazylin007" target="_blank" rel="external">@crazylin007</a>分享JS密码加密代码。</p>
+</blockquote>
+<hr>
+<h1 id="初始化">初始化</h1>
+<p>登录过程主要有四步，分别是初始化，接着是获得本次登录的token，再是获得rsakey和Pubkey，最后是将登录参数一起通过Post请求发送给服务器。初始化过程对HttpClient进行初始化设置，创建HttpClient对象，设置其Cookies机制为浏览器模式，主要为如下代码。</p>
+<pre><code>HttpClient httpClient = <span class="keyword">new</span> HttpClient();
+httpClient.getParams().setCookiePolicy(org.apache.commons.httpclient.cookie.CookiePolicy.BROWSER_COMPATIBILITY);
+httpClient.getParams().setParameter(HttpMethodParams.USER_AGENT,<span class="string">"Mozilla/5.0 (Windows NT 10.0; WOW64; rv:45.0) Gecko/20100101 Firefox/45.0"</span>);  
+</code></pre><p>接着是加载百度页面，获得首次访问页面的Cookie，具体代码如下：</p>
+<pre><code><span class="built_in">String</span> url = <span class="string">"https://passport.baidu.com/v2/?login"</span>;
+HttpMethod getMethod = <span class="keyword">new</span> GetMethod(url);
+<span class="keyword">try</span>
+{
+    httpClient .executeMethod(getMethod);
+} 
+<span class="keyword">catch</span> (HttpException e)
+{
+    <span class="comment">// TODO Auto-generated catch block</span>
+    e.printStackTrace();
+}
+<span class="keyword">catch</span> (IOException e)
+{
+    <span class="comment">// TODO Auto-generated catch block</span>
+    e.printStackTrace();
+}<span class="keyword">finally</span>
+{
+    getMethod.releaseConnection();
+}
+</code></pre><hr>
+<h1 id="获得登录token">获得登录token</h1>
+<p>token相当于该次登录的ID，点击登录时会发送请求获得token，token值由服务器给定，在FireBug中可以看到如图所示的Get请求。<br><img src="/img/baidu-login-with-httpclient/1.png" alt="获得token的Get请求"><br>可以看到该Get请求一共有8个参数，其中tt表示当前时间，gid是随机GUID，可通过如下JS代码生成，Java可直接使用JS引擎调用JS函数，具体方法请百度之。其它参数直接按照图示给定即可。</p>
+<pre><code><span class="function"><span class="keyword">function</span> <span class="title">guidRandom</span><span class="params">()</span> </span>{
+<span class="keyword">return</span> <span class="string">"xxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx"</span>.replace(<span class="regexp">/[xy]/g</span>, <span class="function"><span class="keyword">function</span> <span class="params">(c)</span> </span>{
+    <span class="keyword">var</span> r = <span class="built_in">Math</span>.random() * <span class="number">16</span> | <span class="number">0</span>,
+    v = c == <span class="string">"x"</span> ? r : (r &amp; <span class="number">3</span> | <span class="number">8</span>);
+    <span class="keyword">return</span> v.toString(<span class="number">16</span>)
+}).toUpperCase()
+}
+</code></pre><p>知道了Get请求中每个参数的值后便可通过HttpClient模拟发送Get请求了，请求的响应里包括一段JSON格式的数据，将其中的token解析出来就OK了，具体代码如下。</p>
+<pre><code><span class="javadoc">/**
+ * 百度登录先获得Token
+ *<span class="javadoctag"> @param</span> gid 随机ID
+ *<span class="javadoctag"> @return</span>
+ */</span>
+<span class="keyword">public</span> String <span class="title">getToken</span>(HttpClient client, String gid)
+{
+    String tt = <span class="string">""</span> + (<span class="keyword">new</span> Date()).getTime();
+    String baseUrl = <span class="string">"https://passport.baidu.com/v2/api/?getapi&amp;tpl=dev&amp;apiver=v3&amp;tt=%s&amp;class=login&amp;gid=%s&amp;logintype=dialogLogin&amp;callback=bd__cbs__bsbrf9"</span>;
+    String requestUrl = String.format(baseUrl, tt, gid);
+    HttpMethod getMethod = <span class="keyword">new</span> GetMethod(requestUrl);
+    <span class="keyword">try</span>
+    {
+        client.executeMethod(getMethod);
+        <span class="keyword">if</span>(!(getMethod.getStatusCode() == HttpStatus.SC_OK)) <span class="keyword">return</span> <span class="string">""</span>;
+        String jsonStr = getMethod.getResponseBodyAsString();
+        jsonStr = jsonStr.substring(jsonStr.indexOf(<span class="string">'('</span>) + <span class="number">1</span>, jsonStr.lastIndexOf(<span class="string">')'</span>));
+
+        JSONObject jsonObj = <span class="keyword">new</span> JSONObject(jsonStr);
+        String token = <span class="keyword">new</span> JSONObject(jsonObj.getString(<span class="string">"data"</span>)).getString(<span class="string">"token"</span>).toString();
+        <span class="keyword">return</span> token;
+    } 
+    <span class="keyword">catch</span> (HttpException e)
+    {
+        <span class="comment">// TODO Auto-generated catch block</span>
+        e.printStackTrace();
+    }
+    <span class="keyword">catch</span> (IOException e)
+    {
+        <span class="comment">// TODO Auto-generated catch block</span>
+        e.printStackTrace();
+    } <span class="keyword">catch</span> (JSONException e)
+    {
+        <span class="comment">// TODO Auto-generated catch block</span>
+        e.printStackTrace();
+    }<span class="keyword">finally</span>
+    {
+        getMethod.releaseConnection();
+    }
+
+    <span class="keyword">return</span> <span class="string">""</span>;
+}
+</code></pre><hr>
+<h1 id="获得RSAkey和Pubkey">获得RSAkey和Pubkey</h1>
+<p>在登录框输入用户名并将鼠标点击到密码框后可以看到会发送另外一条Get请求，该请求如下图所示。<br><img src="/img/baidu-login-with-httpclient/2.png" alt="获得RSAkey和Pubkey的请求"><br>可以看到该请求一共有5个参数，其中token即为上文解析出来的，gid和上文一样，tt也是当前时间，剩余参数直接按照图中给定即可。下面便可以通过HttpClient执行该Get请求，其返回的响应字符串可解析出JSON格式的数据，包括rsakey和pubkey字段，具体代码如下。</p>
+<pre><code><span class="javadoc">/**
+ * 百度登录获得RSA加密公钥和Pubkey
+ *<span class="javadoctag"> @param</span> client
+ *<span class="javadoctag"> @param</span> gid
+ *<span class="javadoctag"> @param</span> token
+ *<span class="javadoctag"> @return</span>
+ */</span>
+<span class="keyword">public</span> String[] <span class="title">getRSAKeyAndPubKey</span>(HttpClient client, String gid, String token)
+{
+    String tt = <span class="string">""</span> + (<span class="keyword">new</span> Date()).getTime();
+    String baseUrl = <span class="string">"https://passport.baidu.com/v2/getpublickey?token=%s&amp;tpl=dev&amp;apiver=v3&amp;tt=%s&amp;gid=%s&amp;callback=bd__cbs__fbzosu"</span>;
+    String requestUrl = String.format(baseUrl, token, tt, gid);
+    HttpMethod getMethod = <span class="keyword">new</span> GetMethod(requestUrl);
+    <span class="keyword">try</span>
+    {
+        client.executeMethod(getMethod);
+        <span class="keyword">if</span>(!(getMethod.getStatusCode() == HttpStatus.SC_OK)) <span class="keyword">return</span> <span class="keyword">null</span>;
+        String jsonStr = getMethod.getResponseBodyAsString();
+        jsonStr = jsonStr.substring(jsonStr.indexOf(<span class="string">'('</span>) + <span class="number">1</span>, jsonStr.lastIndexOf(<span class="string">')'</span>));
+
+        JSONObject jsonObj = <span class="keyword">new</span> JSONObject(jsonStr);
+        String rsaKey = jsonObj.getString(<span class="string">"key"</span>);
+        String pubKey = jsonObj.getString(<span class="string">"pubkey"</span>);
+
+        <span class="keyword">return</span> <span class="keyword">new</span> String[]{rsaKey, pubKey};
+    } <span class="keyword">catch</span> (HttpException e)
+    {
+        <span class="comment">// TODO Auto-generated catch block</span>
+        e.printStackTrace();
+    }<span class="keyword">catch</span> (IOException e)
+    {
+        <span class="comment">// TODO Auto-generated catch block</span>
+        e.printStackTrace();
+    } <span class="keyword">catch</span> (JSONException e)
+    {
+        <span class="comment">// TODO Auto-generated catch block</span>
+        e.printStackTrace();
+    }<span class="keyword">finally</span>
+    {
+        getMethod.releaseConnection();
+    }
+    <span class="keyword">return</span> <span class="keyword">null</span>;
+}
+</code></pre><hr>
+<h1 id="提交登录请求">提交登录请求</h1>
+<p>获得了RSAkey和Pubkey便可通过RSA加密获得密码加密后的密文，并将其作为参数发送给百度服务器了，最终提交登录请求的是Post请求，通过FireBug可得到如下图所示的请求。</p>
+<p><img src="/img/baidu-login-with-httpclient/3.png" alt="登录POST请求"><br>POST主要的参数为password，是由给定Pubkey通过RSA加密得到的密文，rsakey为上文获得的rsakey，tt仍然为当前时间，gid同上文，其它参数按照图示给定即可。使用HttpClient提交此POST请求的代码如下所示。</p>
+<pre><code><span class="javadoc">/**
+ * 百度账号登录
+ *<span class="javadoctag"> @return</span>
+ */</span>
+<span class="keyword">public</span> HttpClient <span class="title">baiduLogin</span>()
+{
+    HttpClient httpClient = initHttpClient();
+
+    loadPage(httpClient);
+
+    String gid = baiduEncoder.randomGuid();
+    Map&lt;String, String&gt; parameters = <span class="keyword">new</span> HashMap&lt;String, String&gt;();
+
+    parameters.put(<span class="string">"gid"</span>, gid);
+
+    String token = getToken(httpClient, gid);
+    parameters.put(<span class="string">"token"</span>, token);
+
+    String [] rsa = getRSAKeyAndPubKey(httpClient, gid, token);
+    <span class="keyword">if</span>(rsa == <span class="keyword">null</span>) <span class="keyword">return</span> <span class="keyword">null</span>;
+    parameters.put(<span class="string">"rsakey"</span>, rsa[<span class="number">0</span>]);
+    parameters.put(<span class="string">"pubkey"</span>, rsa[<span class="number">1</span>]);
+    parameters.put(<span class="string">"username"</span>, userName);
+    parameters.put(<span class="string">"password"</span>, password);
+
+    String requestUrl= <span class="string">"https://passport.baidu.com/v2/api/?login"</span>;
+    PostMethod loginMethod = <span class="keyword">new</span> PostMethod(requestUrl);
+    wrapBaiduLoginPostParameters(parameters, loginMethod);
+
+    <span class="keyword">try</span>
+    {
+        <span class="comment">//发送登录请求</span>
+        httpClient.executeMethod(loginMethod);
+        <span class="comment">//check login result</span>
+        <span class="keyword">boolean</span> loginResult = checkBaiduLoginResult(httpClient);
+
+        <span class="keyword">if</span>(loginResult)
+        {
+            System.out.println(String.format(<span class="string">"恭喜你百度账号%s，登录成功！"</span>, userName));
+        }
+        <span class="keyword">else</span>
+        {
+            System.out.println(String.format(<span class="string">"对不起%s，登录失败！"</span>, userName));
+            <span class="keyword">return</span> <span class="keyword">null</span>;
+        }
+    }
+    <span class="keyword">catch</span> (HttpException e)
+    {
+        <span class="comment">// TODO Auto-generated catch block</span>
+        e.printStackTrace();
+        <span class="keyword">return</span> <span class="keyword">null</span>;
+    } 
+    <span class="keyword">catch</span> (IOException e)
+    {
+        <span class="comment">// TODO Auto-generated catch block</span>
+        e.printStackTrace();
+        <span class="keyword">return</span> <span class="keyword">null</span>;
+    }
+    <span class="keyword">catch</span> (Exception e)
+    {
+        e.printStackTrace();
+        <span class="keyword">return</span> <span class="keyword">null</span>;
+    }
+    <span class="keyword">finally</span>
+    {
+        loginMethod.releaseConnection();
+    }
+
+    <span class="keyword">return</span> httpClient;
+}
+<span class="javadoc">/**
+ * 封装登录百度账号的参数
+ *<span class="javadoctag"> @param</span> parameters
+ *<span class="javadoctag"> @param</span> postMethod
+ */</span>
+<span class="keyword">public</span> <span class="keyword">void</span> <span class="title">wrapBaiduLoginPostParameters</span>(Map&lt;String, String&gt; parameters, PostMethod postMethod)
+{
+    List&lt;NameValuePair&gt; parameterList = <span class="keyword">new</span> ArrayList&lt;NameValuePair&gt;();
+    parameterList.add(<span class="keyword">new</span> NameValuePair(<span class="string">"apiver"</span>, <span class="string">"v3"</span>));
+    parameterList.add(<span class="keyword">new</span> NameValuePair(<span class="string">"callback"</span>, <span class="string">"parent.bd__pcbs__rojm4c"</span><span class="comment">/*"parent.bd__pcbs__avv1a8"*/</span>));
+    parameterList.add(<span class="keyword">new</span> NameValuePair(<span class="string">"charset"</span>, <span class="string">"UTF-8"</span>));
+    parameterList.add(<span class="keyword">new</span> NameValuePair(<span class="string">"codestring"</span>, <span class="string">""</span>));
+    parameterList.add(<span class="keyword">new</span> NameValuePair(<span class="string">"countrycode"</span>, <span class="string">""</span>));
+    parameterList.add(<span class="keyword">new</span> NameValuePair(<span class="string">"crypttype"</span>, <span class="string">"12"</span>));
+    parameterList.add(<span class="keyword">new</span> NameValuePair(<span class="string">"detect"</span>, <span class="string">"1"</span>));
+    parameterList.add(<span class="keyword">new</span> NameValuePair(<span class="string">"gid"</span>, parameters.get(<span class="string">"gid"</span>)));
+    parameterList.add(<span class="keyword">new</span> NameValuePair(<span class="string">"idc"</span>, <span class="string">""</span>));
+    parameterList.add(<span class="keyword">new</span> NameValuePair(<span class="string">"isphone"</span>, <span class="string">""</span>));
+    parameterList.add(<span class="keyword">new</span> NameValuePair(<span class="string">"logLoginType"</span>, <span class="string">"pc_loginDialog"</span>));
+    parameterList.add(<span class="keyword">new</span> NameValuePair(<span class="string">"loginmerge"</span>, <span class="string">"true"</span>));
+    parameterList.add(<span class="keyword">new</span> NameValuePair(<span class="string">"logintype"</span>, <span class="string">"dialogLogin"</span>));
+    parameterList.add(<span class="keyword">new</span> NameValuePair(<span class="string">"mem_pass"</span>, <span class="string">"on"</span>));
+
+    String pubKey = parameters.get(<span class="string">"pubkey"</span>);
+    String pwd = parameters.get(<span class="string">"password"</span>);
+    String password = baiduEncoder.encryptRSAPassword(pwd, pubKey);
+    parameterList.add(<span class="keyword">new</span> NameValuePair(<span class="string">"password"</span>, password));
+
+
+    parameterList.add(<span class="keyword">new</span> NameValuePair(<span class="string">"ppui_logintime"</span>, <span class="string">"12306"</span><span class="comment">/*"38914272"*/</span>));
+    parameterList.add(<span class="keyword">new</span> NameValuePair(<span class="string">"quick_user"</span>, <span class="string">"0"</span>));
+    String rsaKey = parameters.get(<span class="string">"rsakey"</span>);
+    parameterList.add(<span class="keyword">new</span> NameValuePair(<span class="string">"rsakey"</span>, rsaKey));
+    parameterList.add(<span class="keyword">new</span> NameValuePair(<span class="string">"safeflg"</span>, <span class="string">"0"</span>));
+    parameterList.add(<span class="keyword">new</span> NameValuePair(<span class="string">"splogin"</span>, <span class="string">"rate"</span>));
+    parameterList.add(<span class="keyword">new</span> NameValuePair(<span class="string">"staticpage"</span>, <span class="string">"http://developer.baidu.com/static/developer3/html/v3Jump.html"</span>));
+    parameterList.add(<span class="keyword">new</span> NameValuePair(<span class="string">"subpro"</span>, <span class="string">""</span>));
+    String token = parameters.get(<span class="string">"token"</span>);
+    parameterList.add(<span class="keyword">new</span> NameValuePair(<span class="string">"token"</span>, token));
+    parameterList.add(<span class="keyword">new</span> NameValuePair(<span class="string">"tpl"</span>, <span class="string">"dev"</span>));
+    String tt = (<span class="keyword">new</span> Date()).getTime() + <span class="string">""</span>;
+    parameterList.add(<span class="keyword">new</span> NameValuePair(<span class="string">"tt"</span>, tt));
+    parameterList.add(<span class="keyword">new</span> NameValuePair(<span class="string">"u"</span>, <span class="string">"http://openapi.baidu.com/"</span>));
+    parameterList.add(<span class="keyword">new</span> NameValuePair(<span class="string">"username"</span>, parameters.get(<span class="string">"username"</span>)));
+    parameterList.add(<span class="keyword">new</span> NameValuePair(<span class="string">"varifycode"</span>, <span class="string">""</span>));
+
+
+    NameValuePair [] nameValuePairArray = <span class="keyword">new</span> NameValuePair[parameterList.size()];
+    parameterList.toArray(nameValuePairArray);
+
+    postMethod.setRequestBody(nameValuePairArray);
+
+
+}
+</code></pre><hr>
+<h1 id="检查是否登录成功">检查是否登录成功</h1>
+<p>账号若登录成功在HttpClient中会有相应的cookie记录，如下代码所示，至此整个过程就结束啦。</p>
+<pre><code><span class="javadoc">/**
+ * 通过Cookies检查百度账号是否登录成功
+ *<span class="javadoctag"> @param</span> client
+ *<span class="javadoctag"> @return</span>
+ */</span>
+<span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">checkBaiduLoginResult</span>(HttpClient client)
+{
+    Cookie[] cookies = client.getState().getCookies();
+    <span class="keyword">if</span>(cookies != <span class="keyword">null</span>)
+    {
+        <span class="keyword">for</span> (Cookie cookie: cookies)
+            <span class="keyword">if</span>(cookie.getName().equals(<span class="string">"BDUSS"</span>)) <span class="keyword">return</span> <span class="keyword">true</span>;
+    }
+    <span class="keyword">return</span> <span class="keyword">false</span>;
+}
+</code></pre>]]></content>
+    <summary type="html">
+    <![CDATA[<blockquote>
+<p>最近在做一个项目需要下载大量数据，因为下载过程中需要登录百度账号才能获得数据访问权限，所以需要使用程序模拟浏览器的账号登录行为，本人Java党，果断用HttpClient包，HttpClient是一个支持HTTP协议Java语言的开源工具包，可以通]]>
+    </summary>
+    
+      <category term="网络爬虫" scheme="http://baogege.info/tags/%E7%BD%91%E7%BB%9C%E7%88%AC%E8%99%AB/"/>
+    
+      <category term="Java" scheme="http://baogege.info/tags/Java/"/>
+    
+      <category term="编程技术" scheme="http://baogege.info/categories/%E7%BC%96%E7%A8%8B%E6%8A%80%E6%9C%AF/"/>
+    
+  </entry>
+  
+  <entry>
+    <title><![CDATA[不平衡数据下的机器学习方法简介]]></title>
+    <link href="http://baogege.info/2015/11/16/learning-from-imbalanced-data/"/>
+    <id>http://baogege.info/2015/11/16/learning-from-imbalanced-data/</id>
+    <published>2015-11-16T14:01:18.000Z</published>
+    <updated>2016-05-07T12:43:22.000Z</updated>
+    <content type="html"><![CDATA[<blockquote>
+<p>机器学习已经成为了当前互联网领域不可或缺的技术之一，前辈们对机器学习模型的研究已经给我们留下了一笔非常宝贵的财富，然而在工业界的应用中我们可以看到，应用场景千千万万，数据千千万万但是我们的模型却依然是那些，在机器学习的应用中对数据的处理与分析往往扮演着比模型更加重要的角色，本文针对机器学习应用数据处理的一个方面即“不平衡数据”下的机器学习方法进行了简单介绍。</p>
+</blockquote>
+<hr>
+<h1 id="引言">引言</h1>
+<p>不管是在学术界还是工业界，不平衡学习已经吸引了越来越多的关注，不平衡数据的场景也出现在互联网应用的方方面面，如搜索引擎的点击预测（点击的网页往往占据很小的比例），电子商务领域的商品推荐（推荐的商品被购买的比例很低），信用卡欺诈检测，网络攻击识别等等。</p>
+<h2 id="问题定义">问题定义</h2>
+<p>那么什么是不平衡数据呢？顾名思义即我们的数据集样本类别极不均衡，以二分类问题为例，假设我们的数据集是$S$，数据集中的多数类为$S<em>{maj}$，少数类为$S</em>{min}$，通常情况下把多数类样本的比例为$100:1$,$1000:1$，甚至是$10000:1$这种情况下为不平衡数据，不平衡数据的学习即需要在如此分布不均匀的数据集中学习到有用的信息。</p>
+<h2 id="为什么不平衡学习">为什么不平衡学习</h2>
+<p>传统的学习方法以降低总体分类精度为目标，将所有样本一视同仁，同等对待，如下图1所示，造成了分类器在多数类的分类精度较高而在少数类的分类精度很低。机器学习模型都有一个待优化的损失函数，以我们最常用最简单的二元分类器逻辑回归为例，其损失函数如下公式1所示，逻辑回归以优化总体的精度为目标，不同类别的误分类情况产生的误差是相同的，考虑一个$500:1$的数据集，即使把所有样本都预测为多数类其精度也能达到$500/501$之高，很显然这并不是一个很好的学习效果，因此传统的学习算法在不平衡数据集中具有较大的局限性。<br><img src="/img/learning-from-imbalanced-data/1.png" alt="图1 传统学习在不平衡数据下的缺点"><br><img src="/img/learning-from-imbalanced-data/2.png" alt="公式1 逻辑回归的交叉熵损失函数"></p>
+<hr>
+<h1 id="不平衡学习的方法">不平衡学习的方法</h1>
+<p>既然传统的学习算法在不平衡数据中具有较大的局限性，那么针对不平衡数据集又有怎样的解决方案呢？解决方法主要分为两个方面，第一种方案主要从数据的角度出发，主要方法为抽样，既然我们的样本是不平衡的，那么可以通过某种策略进行抽样，从而让我们的数据相对均衡一些；第二种方案从算法的角度出发，考虑不同误分类情况代价的差异性对算法进行优化，使得我们的算法在不平衡数据下也能有较好的效果。</p>
+<h2 id="采样">采样</h2>
+<h3 id="随机采样">随机采样</h3>
+<p>采样算法通过某一种策略改变样本的类别分布，以达到将不平衡分布的样本转化为相对平衡分布的样本的目的，而随机采样是采样算法中最简单也最直观易懂的一种方法。随机采样主要分为两种类型，分别为随机欠采样和随机过采样两种。随机欠采样顾名思义即从多数类$S_maj$中随机选择少量样本$E$再合并原有少数类样本作为新的训练数据集，新数据集为$S_min+E$，随机欠采样有两种类型分别为有放回和无放回两种，无放回欠采样在对多数类某样本被采样后不会再被重复采样，有放回采样则有可能。随机过采样则正好相反，即通过多次有放回随机采样从少数类$S_min$中抽取数据集$E$，采样的数量要大于原有少数类的数量，最终的训练集为$S_maj+E$。</p>
+<p>可以看到随机采样通过改变多数类或少数类样本比例以达到修改样本分布的目的，从而让样本分布较为均衡，但是他们也存在一些问题。对于随机欠采样，由于采样的样本要少于原样本集合，因此会造成一些信息缺失，未被采样的样本往往带有很重要的信息。对于随机过采样，由于需要对少数类样本进行复制因此扩大了数据集，造成模型训练复杂度加大，另一方面也容易造成模型的过拟合问题。针对这些问题提出了几种其它的采样算法。</p>
+<h3 id="SMOTE算法">SMOTE算法</h3>
+<p>SMOTE全称是Synthetic Minority Oversampling Technique即合成少数类过采样技术，它是基于随机过采样算法的一种改进方案，由于随机过采样采取简单复制样本的策略来增加少数类样本，这样容易产生模型过拟合的问题，即使得模型学习到的信息过于特别(Specific)而不够泛化(General)，SMOTE算法的基本思想是对少数类样本进行分析并根据少数类样本人工合成新样本添加到数据集中，具体如图2所示，算法流程如下。</p>
+<ol>
+<li>对于少数类中每一个样本$x$，以欧氏距离为标准计算它到少数类样本集$S_min$中所有样本的距离，得到其k近邻。</li>
+<li>根据样本不平衡比例设置一个采样比例以确定采样倍率$N$，对于每一个少数类样本$x$，从其k近邻中随机选择若干个样本，假设选择的近邻为$\hat{x}$。</li>
+<li>对于每一个随机选出的近邻$\hat{x}$，分别与原样本按照如下的公式构建新的样本。<br><img src="/img/learning-from-imbalanced-data/3.png" alt=""><br><img src="/img/learning-from-imbalanced-data/4.png" alt="图2 SMOTE算法"><br>SMOTE算法摒弃了随机过采样复制样本的做法，可以防止随机过采样易过拟合的问题，实践证明此方法可以提高分类器的性能。但是由于对每个少数类样本都生成新样本，因此容易发生生成样本重叠(Overlapping)的问题，为了解决SMOTE算法的这一缺点提出一些改进算法，其中的一种是Borderline-SMOTE算法，如图3所示。<br>在Borderline-SMOTE中，若少数类样本的每个样本$x_i$求k近邻，记作$S_i-knn$，且$S_i-knn$属于整个样本集合$S$而不再是少数类样本，若满足<br><img src="/img/learning-from-imbalanced-data/5.png" alt=""><br>则将样本$x_i$加入DANGER集合，显然DANGER集合代表了接近分类边界的样本，将DANGER当作SMOTE种子样本的输入生成新样本。特别地，当上述条件取右边界，即k近邻中全部样本都是多数类时，此样本不会被选择为种样本生成新样本，此情况下的样本为噪音。<br><img src="/img/learning-from-imbalanced-data/6.png" alt="图3 Borderline-SMOTE算法"></li>
+</ol>
+<h3 id="Informed_Undersampling">Informed Undersampling</h3>
+<p>既然SMOTE可以解决随机过采样容易发生的模型过拟合问题，对应地也有一些采样方法可以解决随机欠采样造成的数据信息丢失问题，答案是Informed undersampling采样技术，informed undersampling采样技术主要有两种方法分别是EasyEnsemble算法和BalanceCascade算法。<br>EasyEnsemble算法如下图4所示，此算法类似于随机森林的Bagging方法，它把数据划分为两部分，分别是多数类样本和少数类样本，对于多数类样本$S_maj$，通过n次有放回抽样生成n份子集，少数类样本分别和这n份样本合并训练一个模型，这样可以得到n个模型，最终的模型是这n个模型预测结果的平均值。BalanceCascade算法是一种级联算法，BalanceCascade从多数类$S_maj$中有效地选择N且满足$\midN\mid=\midS_min\mid$，将N和$\S_min$合并为新的数据集进行训练，新训练集对每个多数类样本$x_i$进行预测若预测对则$S_maj=S_maj-x_i$。依次迭代直到满足某一停止条件，最终的模型是多次迭代模型的组合。<br><img src="/img/learning-from-imbalanced-data/7.png" alt="图4 EasyEsemble算法"></p>
+<h2 id="代价敏感学习">代价敏感学习</h2>
+<h3 id="代价矩阵">代价矩阵</h3>
+<p>采样算法从数据层面解决不平衡数据的学习问题，在算法层面上解决不平衡数据学习的方法主要是基于代价敏感学习算法(Cost-Sensitive Learning)，代价敏感学习方法的核心要素是代价矩阵，我们注意到在实际的应用中不同类型的误分类情况导致的代价是不一样的，例如在医疗中，“将病人误疹为健康人”和“将健康人误疹为病人”的代价不同；在信用卡盗用检测中，“将盗用误认为正常使用”与“将正常使用识破认为盗用”的代价也不相同，因此我们定义代价矩阵如下图5所示。标记$C_ij$为将类别j误分类为类别i的代价，显然$C_00=C_11=0$，$C_01,C_10$为两种不同的误分类代价，当两者相等时为代价不敏感的学习问题。<br><img src="/img/learning-from-imbalanced-data/8.png" alt="图5 代价矩阵"></p>
+<h3 id="代价敏感学习方法">代价敏感学习方法</h3>
+<p>基于以上代价矩阵的分析，代价敏感学习方法主要有以下三种实现方式，分别是：</p>
+<ol>
+<li>从学习模型出发，着眼于对某一具体学习方法的改造，使之能适应不平衡数据下的学习，研究者们针对不同的学习模型如感知机，支持向量机，决策树，神经网络等分别提出了其代价敏感的版本。以代价敏感的决策树为例，可从三个方面对其进行改进以适应不平衡数据的学习，这三个方面分别是决策阈值的选择方面、分裂标准的选择方面、剪枝方面，这三个方面中都可以将代价矩阵引入，具体实现算法可参考参考文献中的相关文章。</li>
+<li>从贝叶斯风险理论出发，把代价敏感学习看成是分类结果的一种后处理，按照传统方法学习到一个模型，以实现损失最小为目标对结果进行调整，优化公式如下所示。此方法的优点在于它可以不依赖所用具体的分类器，但是缺点也很明显它要求分类器输出值为概率。<br><img src="/img/learning-from-imbalanced-data/9.png" alt=""></li>
+<li>从预处理的角度出发，将代价用于权重的调整，使得分类器满足代价敏感的特性，下面讲解一种基于Adaboost的权重更新策略。</li>
+</ol>
+<h3 id="AdaCost算法">AdaCost算法</h3>
+<p>让我们先来简单回顾一下Adaboost算法，如下图6所示。Adaboost算法通过反复迭代，每一轮迭代学习到一个分类器，并根据当前分类器的表现更新样本的权重，如图中红框所示，其更新策略为正确分类样本权重降低，错误分类样本权重加大，最终的模型是多次迭代模型的一个加权线性组合，分类越准确的分类器将会获得越大的权重。<br><img src="/img/learning-from-imbalanced-data/10.png" alt="图6 Adaboost算法"><br>AdaCost算法修改了Adaboost算法的权重更新策略，其基本思想是对于代价高的误分类样本大大地提高其权重，而对于代价高的正确分类样本适当地降低其权重，使其权重降低相对较小。总体思想是代价高样本权重增加得大降低得慢。其样本权重按照如下公式进行更新。其中$\beta<em>+$和$\beta</em>-$分别表示样本被正确和错误分类情况下$\beta$的取值。<br><img src="/img/learning-from-imbalanced-data/11.png" alt=""></p>
+<hr>
+<h1 id="不平衡学习的评价方法">不平衡学习的评价方法</h1>
+<h2 id="正确率和F值">正确率和F值</h2>
+<p>正确率和F值的计算都是基于混淆矩阵(Confusion Matrix)的，混淆矩阵如下图7所示，每行代表预测情况，每列代表实际类别，TP,FP,FN,TN分别代表正类正确分类数量，预测为正类但是真实为负类，预测为负类但是真实为正类，负类正确分类数量。<br><img src="/img/learning-from-imbalanced-data/12.png" alt="图7 混淆矩阵"><br>正确率(Accuracy)和F值的计算如下式所示。可见正确率或错误率并不能表示不平衡数据下模型的表现，对于不平衡数据即使全部预测为多数类也可以达到较高的正确率较低的错误率，而F值同时考虑到了少数类的准确率和召回率，因此能衡量不平衡数据下模型的表现，其中$\beta$取值通常为1。<br><img src="/img/learning-from-imbalanced-data/13.png" alt=""><br><img src="/img/learning-from-imbalanced-data/14.png" alt=""></p>
+<h2 id="G-Mean">G-Mean</h2>
+<p>G-Mean是另外一个指标，也能评价不平衡数据的模型表现，其计算公式如下。<br><img src="/img/learning-from-imbalanced-data/15.png" alt=""></p>
+<h2 id="ROC曲线和AUC">ROC曲线和AUC</h2>
+<p>为了介绍ROC曲线首先引入两个是，分别是FP_rate和TP_rate，它们分别表示1-负类召回率和正类召回率，显然模型表示最好的时候FP_rate=0且TP_rate=1，我们以FP_rate为横坐标，TP_rate为纵坐标可以得到点(FP_rate,TP_rate)，通过调整模型预测的阈值可以得到不同的点，将这些点可以连成一条曲线，这条曲线叫做接受者工作特征曲线(Receiver Operating Characteristic Curve，简称ROC曲线）如下图8所示。显然A点为最优点，ROC曲线越靠近A点代表模型表现越好，曲线下面积（Area Under Curve, AUC）越大，AUC是衡量模型表现好坏的一个重要指标。<br><img src="/img/learning-from-imbalanced-data/16.png" alt="图8 ROC曲线"></p>
+<hr>
+<h1 id="总结">总结</h1>
+<p>本文介绍了不平衡数据下学习的常用方法及其评价指标，方法主要从数据和模型两个层面考虑，数据方面的方法主要为采样算法，模型方面主要基于代价敏感学习。本文主要来源于论文“Learning from Imbalanced Data”，借着组会主讲的契机作了总结分享给各位，感谢师姐精美的PPT给了我很多灵感。</p>
+]]></content>
+    <summary type="html">
+    <![CDATA[<blockquote>
+<p>机器学习已经成为了当前互联网领域不可或缺的技术之一，前辈们对机器学习模型的研究已经给我们留下了一笔非常宝贵的财富，然而在工业界的应用中我们可以看到，应用场景千千万万，数据千千万万但是我们的模型却依然是那些，在机器学习的应用中对数据的处理与分析往往扮]]>
+    </summary>
+    
+      <category term="机器学习" scheme="http://baogege.info/tags/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0/"/>
+    
+      <category term="机器学习" scheme="http://baogege.info/categories/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0/"/>
+    
+  </entry>
+  
+  <entry>
+    <title><![CDATA[模型组合基本方法简介]]></title>
+    <link href="http://baogege.info/2015/04/27/model-aggregation/"/>
+    <id>http://baogege.info/2015/04/27/model-aggregation/</id>
+    <published>2015-04-27T13:36:07.000Z</published>
+    <updated>2016-05-06T03:20:09.000Z</updated>
+    <content type="html"><![CDATA[<blockquote>
+<p>在机器学习应用中，我们往往会碰到单个模型效果并不够理想的情况，这个时候就需要一些模型组合的技巧了。本文主要讲解两种常见的模型组合方法即Bagging和Boosting，并对应用这两种思想的相关模型作了介绍。</p>
+</blockquote>
+<h1 id="什么是模型组合">什么是模型组合</h1>
+<hr>
+<p>如果我们已经训练好了多个模型，并且希望通过已有的这些模型组合成一个更强的模型，那么我们可能会有以下选择：</p>
+<ul>
+<li>通过验证集找到在验证集表现最好的那个</li>
+<li>多个模型投票或者取均值</li>
+<li>多个模型做加权平均</li>
+</ul>
+<p>可以看到这些都是我们做模型组合的一些思路，所谓模型组合即组合多个模型以获得更好的效果，使组合的模型具有更强的泛化能力。这里所说更强的泛化能力在机器学习无非两种即降低Bias或降低Variance。Bias度量了某种学习算法的平均估计结果所能逼近学习目标(目标输出)的程度，即Bias越低，模型的误差越低；Variance则度量了模型对于不同的数据集模型估计结果发生变动的程度，可以理解为模型稳定性的一个度量方式，Variance越低说明模型越健壮，越稳定，反之说明模型不稳定，对于不同的数据集表现差别很大，也就是很有可能发生过拟合了，所以说一个好的模型不仅要有很低的误差(Bias),还需要对不同的数据集表现稳定（低的Variance）。下面我们去看看两种降低Bias和Variance的方法。</p>
+<h1 id="组合方法">组合方法</h1>
+<hr>
+<h2 id="Bagging">Bagging</h2>
+<p>Bagging全名Boostrap Aggregration，在这里并不是书包的意思，其中Bootstrap是一种有有放回的抽样方法，其抽样策略就是简单随机抽样。Bagging的思路就是让学习算法训练多轮，每轮的训练集由从初始的训练集中随机取出的n个训练样本组成，初始训练例在某轮训练集中可以出现多次或根本不出现训练之后可得到一个预测函数序列$h_1$,$h_2$⋯ ⋯$h_n$ 最终的预测函数H对分类问题采用投票方式，对回归问题采用简单平均方法对新示例进行判别。这种方法可以说是再简单不过了，但是在应用中却往往特别高效，基于Bagging思想的随机森林模型一直都是公认泛化能力很强的分类器之一。</p>
+<h2 id="Boosting">Boosting</h2>
+<p>Boosting顾名思义，提升方法，将多个弱学习模型提升为强学习模型。初始化时对每一个训练例赋相等的权重1／n，然后用该学算法对训练集训练t轮，每次训练后，对训练失败的训练例赋以较大的权重，也就是让学习算法在后续的学习中集中对比较难的训练铡进行学习，从而得到一个预测函数序列$h_1$,$h_2$⋯ ⋯$h_n$其中每一个$h_i$都有一定的权重，预测效果好的预测函数权重较大，反之较小。最终的预测函数H对分类问题采用有权重的投票方式，对回归问题采用加权平均的方法对新示例进行判别。基于Boosting的方法主要有Adaboost和梯度提升决策树(Gradient Boosted Decision Tree, GBDT)。</p>
+<h2 id="Bagging和Boosting的对比">Bagging和Boosting的对比</h2>
+<p>从Bagging和Boosting的定义中很容易看到，Bagging的特点在于其抽样的随机化，每一轮的训练是独立的。而Boosting每一轮训练取决于其上一轮的结果，每一轮的训练是相互关联的，因此Bagging很容易实现并行化而Boosting却无法做到并行化。另外Bagging采用的是投票机制，Boosting采用的是加权方式。Boosting通过反复迭代将弱学习模型提升为强学习模型，因此通过Boosting方法可以降低模型的Bias；而Bagging通过反复的抽样训练新的模型，实际上是对已有强学习模型取平均，并不能起到降低Bias的效果，而是使得模型稳定性加强，降低了Variance。因此基于Bagging和Boosting的方法都可以起到增加模型泛化能力的作用。</p>
+<h1 id="应用">应用</h1>
+<hr>
+<p>有了这两种思路，要进行应用就不难了。首先我们需要一个基分类器，我们称之为Base Learner，通过Bagging或者Boosting便可以训练到了一个更加强大的分类器了。而当Bagging，Boosting碰到了决策树，则可以迸发出激情的火花，那么这是什么样的火花呢？我们下文分解。</p>
+]]></content>
+    <summary type="html">
+    <![CDATA[<blockquote>
+<p>在机器学习应用中，我们往往会碰到单个模型效果并不够理想的情况，这个时候就需要一些模型组合的技巧了。本文主要讲解两种常见的模型组合方法即Bagging和Boosting，并对应用这两种思想的相关模型作了介绍。</p>
+</blockquote>
+<h]]>
+    </summary>
+    
+      <category term="模型组合" scheme="http://baogege.info/tags/%E6%A8%A1%E5%9E%8B%E7%BB%84%E5%90%88/"/>
+    
+      <category term="机器学习" scheme="http://baogege.info/tags/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0/"/>
+    
+      <category term="Bagging" scheme="http://baogege.info/tags/Bagging/"/>
+    
+      <category term="Boosting" scheme="http://baogege.info/tags/Boosting/"/>
+    
+      <category term="机器学习" scheme="http://baogege.info/categories/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0/"/>
+    
+  </entry>
+  
+  <entry>
+    <title><![CDATA[分享一个随机森林和决策树模型的实现代码]]></title>
+    <link href="http://baogege.info/2015/02/13/API-for-My-RandomForest/"/>
+    <id>http://baogege.info/2015/02/13/API-for-My-RandomForest/</id>
+    <published>2015-02-13T15:07:42.000Z</published>
+    <updated>2016-05-06T03:15:22.000Z</updated>
+    <content type="html"><![CDATA[<blockquote>
+<p>写文章之前总是想交待清楚这篇文章的产生背景，如果把这一章改成“引言”,总感觉太单调，并且有点写学术论文的感觉，好吧，就这样吧，改个字体说明一下写作背景。最近在修台湾大学林轩田老师在Coursera上的公开课《机器学习技术》课程，讲到“Blending and Baging”一章，这一章免不了介绍决策树和随机森林，刚好课后作业需要用随机森林和决策树算法，一开始想找找开源的工具包，但是很难发现符合我这个任务的工具包。求人不如求己，受此任务驱动，自己用java实现了一个简单的决策树模型和随机森林模型，在此分享给大家，希望对大家有用。</p>
+</blockquote>
+<h1 id="决策树与随机森林">决策树与随机森林</h1>
+<hr>
+<h2 id="决策树">决策树</h2>
+<p>相信了解机器学习的朋友对决策树模型肯定不会陌生，《统计学习方法》一书里面也是对决策树这一方法作了详尽的描述，可以说决策树是一种非常接近人类思维习惯，可解释性非常强的模型，它可以看作是一系列if-then规则的集合，但是它也有一个很致命的弱点，就是非常容易过拟合。经典的决策树构建方法有ID3算法、C4.5算法、CART算法，前两个方法主要用来解决分类问题，区别在于前者用信息增益作为数据纯度衡量指标，而后者采用的是信息增益比，且后者对树进行了剪枝；CART算法则可以解决回归问题。具体细节本文就不展开说了。</p>
+<h2 id="混合方法">混合方法</h2>
+<p>当我们有了多个不同的模型时，很容易产生一些想法，即如何把这些模型混合起来并且使混合模型的效果要优于单个模型。对于分类问题，最简单直观地有两种想法，第一种思路是让多个模型进行投票，得票多的类别即为最终的分类结果，这也就是现实生活中的民主法则；第二种思路是对各个模型进行加权，效果好的模型给他更大的权重，和现实生活中一样，权威人士和领导的话语权永远是比普通人更大的。第一种思路称为Baging，第二种思路就是非常有名的Adaboost方法，当然了如果深究下去其实还有第三种思路，即符合某种条件的时候用某一个模型，这其实就是决策树的基本思想。</p>
+<h2 id="随机森林">随机森林</h2>
+<p>随机森林(Random Forest)可以说是Baging和决策树的完美结合，这其实就是“三个臭皮匠，顶个诸葛亮”、“众人拾柴火焰高”的典型例子了。森林两字我们很容易理解，树多了就成了森林，也就是告诉我们，随机森林模型需要很多决策树。那么，“随机”二字是如何体现的呢？其实“随机”体现在随机森林模型的方方面面，首先是其数据的随机，采用有放回随机抽样保证每次模型训练的数据都是不一样的；其次是特征的随机性，每次决策树的训练都随机抽取一些特征，这样保证了每次训练都是用的不一样的特征空间。随机森林通过其随机性等机制有效地弥补了决策树容易过拟合的缺陷。你一棵决策树容易犯错，那么我有一个森林的树去投票做决定这样犯错的可能性总会低不少吧？</p>
+<h1 id="实现方法">实现方法</h1>
+<hr>
+<p>好了，做了这么多作铺垫，先不卖关子了，代码可以在我的个人gitcafe<a href="https://gitcafe.com/baogege" target="_blank" rel="external">主页</a>上<a href="https://gitcafe.com/baogege/RandomForest/tree/master" target="_blank" rel="external">下载</a>，此代码实现了简单CART(Classify and Regression Tree)算法的决策树分类算法，数据不纯度衡量指标选择的是基尼指数；基于此CART决策树实现了简单的随机森林模型，此随机森林模型目前只实现了数据的随机性，特征的随机性功能有待完善。具体使用方法可参照如下说明。</p>
+<h1 id="调用方法">调用方法</h1>
+<hr>
+<h2 id="注意事项">注意事项</h2>
+<p>这里引用了一个矩阵运算的工具包ujmp，所以大家把代码下载了别忘了添加该引用，这个jar包放在了我的项目目录下的lib子目录下。为方便大家使用本人封装了几个基本方法留作外部调用的接口，感兴趣的朋友可查看内部代码并根据自己的需要作出更改。</p>
+<h2 id="数据格式">数据格式</h2>
+<p>首先需要把数据处理成固定的格式，这里面我们只需要处理成最简单的格式，即每行代表一个样本，行中的特征用空格分隔，最后一列为该样本的类别标签。例如只有两维特征的数据格式如下所示</p>
+<blockquote>
+<p>feature1 feature2 +1</p>
+<p>feature1 feature2 -1</p>
+</blockquote>
+<h2 id="CART决策树的调用方法">CART决策树的调用方法</h2>
+<p>调用决策树需要加载数据、建树、评价结果，其代码如下所示。</p>
+<pre><code><span class="comment">//CART完全决策树调用示例</span>
+DecisionTree dt <span class="subst">=</span> <span class="literal">new</span> DecisionTree();
+<span class="built_in">String</span> trainFile <span class="subst">=</span> <span class="string">"./data/hw3_train.dat"</span>;
+<span class="built_in">String</span> testFile <span class="subst">=</span> <span class="string">"./data/hw3_test.dat"</span>;
+<span class="built_in">List</span><span class="subst">&lt;</span>DataItem<span class="subst">&gt;</span> dataList <span class="subst">=</span> Utility<span class="built_in">.</span>loadData(trainFile);
+<span class="built_in">List</span><span class="subst">&lt;</span>DataItem<span class="subst">&gt;</span> testList <span class="subst">=</span> Utility<span class="built_in">.</span>loadData(testFile);
+<span class="comment">//根据已有数据创建CART决策树</span>
+dt<span class="built_in">.</span>buildFullCartTree(dataList);
+<span class="comment">//评价结果错误率</span>
+double err <span class="subst">=</span> dt<span class="built_in">.</span>evaluate(testList);
+System<span class="built_in">.</span>out<span class="built_in">.</span>println(<span class="built_in">String</span><span class="built_in">.</span>format(<span class="string">"ErrorRate: %f"</span>, err));
+</code></pre><h2 id="随机森林的调用方法">随机森林的调用方法</h2>
+<p>随机森林加载数据的方法同上，这里需要设置2个参数，分别是森林中树的数量和抽样比例，其具体调用方法如下所示。</p>
+<pre><code><span class="comment">//随机森林调用示例</span>
+RandomForest rf = <span class="keyword">new</span> RandomForest();
+<span class="comment">//设置参数，森林中树的个数和抽样比例</span>
+<span class="keyword">int</span> treeCount = <span class="number">300</span>;
+<span class="keyword">double</span> sampleRate = <span class="number">1.0</span>d;
+rf.buildFullCartForest(dataList, treeCount, sampleRate);
+<span class="comment">//评价结果错误率</span>
+err = rf.evaluate(testList);
+System.<span class="keyword">out</span>.println(String.format(<span class="string">"ErrorRate: %f"</span>, err));
+</code></pre><h1 id="后记">后记</h1>
+<hr>
+<p>写到这里，我的内心是有些遗憾的，因为在去年参加的阿里巴巴大数据竞赛中就可以应用决策树的扩展方法，而我却没有用到过，所以并没有取得太好的成绩，并且实验结果也证明了成绩好的队伍都是用这那种方法。那种方法其实就是决策树和混合方法第二种思路的完美结合，它有一个高大上的名字叫做梯度提升决策树(Gradient Boosted Decision Tree, GBDT)，这种方法在台湾大学公开课《机器学习技法》中有详细的讲解，感兴趣的朋友可以参照。<br>其实上述代码只是实现了的只是最为简单的决策树和随机森林版本，我是一个懒人，一个任务驱动的懒人，将来可能需要添加剪枝、ID3算法、C4.5算法、回归决策树等功能，但是需要一个任务驱使才能有编码的动力，这些作为后续扩展吧，当然了更希望“有缘人”能去完善它。<br>谨以此文纪念我第一次在公共平台上共享代码。</p>
+]]></content>
+    <summary type="html">
+    <![CDATA[<blockquote>
+<p>写文章之前总是想交待清楚这篇文章的产生背景，如果把这一章改成“引言”,总感觉太单调，并且有点写学术论文的感觉，好吧，就这样吧，改个字体说明一下写作背景。最近在修台湾大学林轩田老师在Coursera上的公开课《机器学习技术》课程，讲到“Blendin]]>
+    </summary>
+    
+      <category term="机器学习" scheme="http://baogege.info/tags/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0/"/>
+    
+      <category term="随机森林" scheme="http://baogege.info/tags/%E9%9A%8F%E6%9C%BA%E6%A3%AE%E6%9E%97/"/>
+    
+      <category term="决策树" scheme="http://baogege.info/tags/%E5%86%B3%E7%AD%96%E6%A0%91/"/>
+    
+      <category term="机器学习" scheme="http://baogege.info/categories/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0/"/>
+    
+  </entry>
+  
+  <entry>
+    <title><![CDATA[Coursera公开课《机器学习基石&技术》课程的感触]]></title>
+    <link href="http://baogege.info/2015/02/12/Summarry-to-Machine-Learning-Skills/"/>
+    <id>http://baogege.info/2015/02/12/Summarry-to-Machine-Learning-Skills/</id>
+    <published>2015-02-12T15:42:31.000Z</published>
+    <updated>2016-05-06T03:20:33.000Z</updated>
+    <content type="html"><![CDATA[<h1 id="背景">背景</h1>
+<hr>
+<p>最近在修台湾大学林轩田老师在Coursera上的机器学习系列课程<a href="https://www.coursera.org/course/ntumlone" target="_blank" rel="external">《机器学习基石》</a>和<a href="https://class.coursera.org/ntumltwo-001/lecture" target="_blank" rel="external">《机器学习技术》</a>，前者是后者的先行课程，是基础，后者是前者的升级与补充。一直都有一个想法，就是完成一系列博客介绍自己对于机器学习领域各个模型的理解，一来是对自己学习成果的一个总结，二来也可以方便其它对机器学习领域感兴趣的朋友更好地理解这些方法。好了，闲话少说，就以这篇文章作一个开端，下面简单介绍一下我修林轩田老师机器学习课程的一些感触。</p>
+<h1 id="课程特点">课程特点</h1>
+<hr>
+<p>MOOC这样一个在线学习平台的优越性自不用我唠叨，我只想说，32个赞，不能再少了。它实在是太方便了！对这门课程的总体感觉，三个字，“有点难”。说它难，一个很重要的原因是此课程的理论性和实践性都偏强，需要有一定的数学功底才能听懂，并且要完成课后习题都需要一定的公式推导。</p>
+<p>此课程最大的优势在于它的每一次作业都有大概8道题是编程题，它会提供数据集，我们需要按照它的方法和参数原模原样地实现了该模型才能做对，这种题目靠蒙是基本上不可能蒙对的，程序有任何的逻辑错误都做不到正确答案。所以如果我们把程序都正确实现了，那么对该模型的理解也肯定基本上不会有什么问题了。</p>
+<h1 id="和Andrew_NG课程的对比">和Andrew NG课程的对比</h1>
+<hr>
+<p>谈到机器学习公开课，大家肯定知道机器学习大牛，来自斯坦福大学的Andrew NG开的<a href="https://www.coursera.org/course/ml" target="_blank" rel="external">机器学习</a>课程，相信修过了那门课程的朋友都会感觉这门课还是比较简单的，不管是课程内容还是课后习题。这门课主要是讲方法，也就是说它只是告诉我们这个模型就是那样，但是它为什么那样却是不知道的。当然了，这不是在贬低这门课，这门课的质量还是蛮高的，因为谁也不可能在这么短的篇幅之内把机器学习各个模型的来龙去脉都讲清楚，作为一个初学者，修这门课的收获还是会挺大的。</p>
+<p>与此不同的是，台湾大学的机器学习课程则对各个模型从理论推导到算法流程都作了系统的讲解，看完了之后有种恍然大悟的感觉。此课程适合对机器学习有了一定的了解之后的朋友修。</p>
+]]></content>
+    <summary type="html">
+    <![CDATA[<h1 id="背景">背景</h1>
+<hr>
+<p>最近在修台湾大学林轩田老师在Coursera上的机器学习系列课程<a href="https://www.coursera.org/course/ntumlone" target="_blank" rel="external]]>
+    </summary>
+    
+      <category term="机器学习" scheme="http://baogege.info/tags/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0/"/>
+    
+      <category term="公开课" scheme="http://baogege.info/tags/%E5%85%AC%E5%BC%80%E8%AF%BE/"/>
+    
+      <category term="Coursera" scheme="http://baogege.info/tags/Coursera/"/>
+    
+      <category term="个人随笔" scheme="http://baogege.info/categories/%E4%B8%AA%E4%BA%BA%E9%9A%8F%E7%AC%94/"/>
+    
+  </entry>
+  
+  <entry>
+    <title><![CDATA[Netflix公司的前世今生]]></title>
+    <link href="http://baogege.info/2014/10/19/introduction-to-netflix/"/>
+    <id>http://baogege.info/2014/10/19/introduction-to-netflix/</id>
+    <published>2014-10-19T13:12:40.000Z</published>
+    <updated>2016-05-06T03:19:07.000Z</updated>
+    <content type="html"><![CDATA[<h1 id="Netflix公司简介">Netflix公司简介</h1>
+<hr>
+<p>Netflix是一家美国公司，在美国、加拿大提供互联网流媒体播放、DVD、蓝光光碟在线出租业务，中文名为“网飞”。该公司成立于1997年，总部位于加利福尼亚州洛斯盖图，1999年开始订阅服务，公司主页为<a href="http://netflix.com" target="_blank" rel="external">http://netflix.com</a>。2009年，该公司可提供多达10万部DVD电影，并有1千万用户。2007年2月25日，Netflix宣布已经售出第10亿份DVD。可能国内的朋友对之不太了解，然而在美国，那可是一家响当当的互联网公司。</p>
+<p>1999年底，市场迎来了DVD的繁荣时代，NetFlix月收入达到10万美元，成为一家理论上的百万资产公司。正是事业风生水起的时候，马克却要求管理团队退出DVD销售，聚焦租赁渠道业务，不然公司将一蹶不振。在推广NetFlix DVD网上订阅的过程中，一种被命名为Cinematch的推荐引擎功不可没，可说是NetFlix的核心竞争力，有了它，竞争对手的效仿充其量不过是照猫画虎。</p>
+<p>2006年，NetFlix的订阅用户接近千万，DVD租赁和销售总收入已达到270亿美元的极限，而数字视频交付则将呈三位数逐年增长。NetFlix决定投身流媒体传输，研发机顶盒，从而使NetFlix完成了从网络到电视的最后几个关键步骤。</p>
+<h2 id="Netflix成功的关键">Netflix成功的关键</h2>
+<p>互联网的大发展为两位雄心勃勃的硅谷人里德和马克创造了无限的商机。他们用这一千载难逢的好时机，创建了NetFlix公司；在公司的运营过程中他们敢于挑战既有行业，打破传统商业模式，开辟蹊径；他们选择以DVD代替VHS（家用录像系统），以网络下单和隔夜直邮补充门店租赁，最后以数字传输代替传统介质的视频输送；NetFlix采用灵活的营销方式，加上网上测试和Cine match推荐算法，适时调整策略，挖掘用户爱好，注重用户体验。NetFlix的发展历经艰险，从无到有，从小到大，每一步都踩在了互联网发展的点上，就连互联网泡沫和金融危机都对它毫发未损，反而越战越勇，成长为至今发展成股值高企、用户上千万、视频输出占据美国宽带流量的20%，行业无敌手的大型视频租赁公司。</p>
+<h1 id="Netflix的商业模式">Netflix的商业模式</h1>
+<hr>
+<h2 id="DVD在线租赁">DVD在线租赁</h2>
+<p>NetFlix成立当年，观影的家庭视频租赁年收入是126亿美元，已连续十年超过影院票房收入，影视租赁市场成熟。但是，此时居统治地位的是VHS，那种既笨又重的录像带。DVD盘当时还是新生事物，NetFlix决定孤注一掷。<br>NetFlix用以打败强大对手的第一个杀手锏是，相比VHS录像带，DVD能够做到片源浩瀚。为了促销以小搏大，NetFlix决定将克林顿总统与莫妮卡.莱温斯基桃色事件中的大陪审团证词做成DVD拷贝在NetFlix网站上出售。很快，NetFlix获得了超过1000份克林顿DVD的订单，《华盛顿邮报》和《纽约时报》就此事件的新闻报道更是推波助澜，令NetFlix的名声飞扬。</p>
+<p>第二是价格合理便宜，客户自选6张，按月订阅，每月40美元，租片可保留7天，每次以邮资已付的邮件归还，迟还不收滞纳金。如果客户喜欢某个片子，还可以按照零售价七折购买。</p>
+<p>第三是，相比VHS，DVD的租借方式更方便, 用户只要在网络上点中片子，隔夜即可收到该片的DVD。马克认为，出色的客户服务结合隔夜交付，可以转化为销售额的增加和客户保留率的提高，为此，他和积极进取的隔夜托运的联邦快递达成合作，并把目标确定为“快递疏忽零容忍法”。每天下班时，NetFlix的客户服务人员都要向未予发货的用户电话致歉。“永远不要失去你争取来的每一个客户”，这是马克的口头禅。而直邮之于马克，如同数学之于里德一样优美和雅致。马克说，“在客户关系中，不存在中间人。你要掌握这种关系，如果你希望它完美，你可以做到让它完美”。</p>
+<p>第四是，一开始采用实体租借网点+虚拟网络订货和直邮的形式吸引客户。在虚拟世界的网络用户界面上，NetFlix以融合亲切的视频租赁店铺布局和图文并茂的目录吸引客户，从而让自己的商品看起来值得期待。马克敏锐地意识到，要打动客户情感，必须让网络购物成为一种舒适的个人体验。如同客户打开一扇门，赫然发现一个专门为其创造的在线视频店铺。至于公司名称，NetFlix，NetFlix，即用大写字母F强调和电影的关系，搭配一个描绘非卷盘胶片的紫、白双色标志。NetFlix团队设计的订购程序足够简便，在线挑选DVD步骤不多，使得整个流程像在门店里取片和还片一样便利。</p>
+<p>这时的关键是NetFlix下赌注于DVD播放机。NetFlix成立当年，家庭影视的主流播放机是VHS，光学模式的DVD，美国本土在1997年3月才推出。当代美国消费市场上有两股强大的力量，一是美式消费主义，二是高科技，这是带动美国经济向前发展的引擎。马克和里德巧妙地将它们融入于一个冒险的事业，试图展现以纯的科学应用给消费者带来时尚和实惠。至此，他们所追求的简单的商业模式也日臻完善：网络软件程序+DVD盘片和播放机，配以大量仓库以及NetFlix的实验发明。到了1999年底，市场迎来了DVD的繁荣时代，此时NetFlix的月收入达到10万美元，年轻的NetFlix一蹿而上成为一家理论上的百万资产公司。</p>
+<h2 id="倾情流媒体">倾情流媒体</h2>
+<p>2006年，NetFlix的订阅用户接近千万，宽带连接到多数美国家庭，以至于制片厂开始考虑通过互联网发行视频，并且首选视频点播格式。市场上，DVD租赁和销售总收入已达到270亿美元的极限，预计再以后将出现缓慢的收入下降。相比之下，数字视频交付则将呈三位数逐年增长。NetFlix决定投身流媒体传输。里德很欣赏YouTube软件的易用性和便利性，他预言，一个能下载到任何可视装置上的免费视频播放软件程序，将会大行其道。为此，里德引进了一位著名的数字视频录像机设计师，后者设计了一种价格低廉、易于使用的传输机顶盒，从而使NetFlix完成了从网络到电视的最后几个关键步骤。在这个领域，NetFlix几乎没有竞争对手。里德告诉媒体说，NetFlix并没有与包括苹果在内的下载网站开展竞争，因为订阅租赁吸引的是特定用户，即那些有备而来、只是偶尔需要菜单服务提供便利的用户。里德认为，其他网站可以与NetFlix形成互补。<br>数据显示，NetFlix可传输的数字电影比例是6/10，占美国宽带流量的20%，依靠他们对于市场的灵敏触觉和灵活善变的市场策略，NetFlix取得了成功！</p>
+<h1 id="Netflix的推荐引擎">Netflix的推荐引擎</h1>
+<hr>
+<p>在推广NetFlix DVD网上订阅的过程中，一种被命名为Cinematch的个性化推荐引擎功不可没。经过几年的实践，NetFlix发现尽可能的集成个性化推荐到功能中，会对订阅用户产生巨大的价值。因此其个性化推荐从首页就开始了，包括按行展示的视频，每一行有一个主题，主题揭示了这行视频的内在联系。大多数个性化都是基于挑选行视频的方法，包括哪些行该放那些视频，以及如何对视频进行排序。同时为了捕获用户的爱好，NetFlix从用户那里获得的信息，包括：用户评分、观看记录、用户好友的推荐等各种反馈信息。NetFlix的推荐引擎为处于成长期的NetFlix带来了巨大的利益，数据表明，现在有 75% 的视频观看是与推荐系统有关的。NetFlix取得这样的成绩源于他们不断优化用户体验，通过优化算法，改善了用户满意度。下面列举一些使用在推荐系统中的技术和算法。</p>
+<h2 id="Netflix推荐系统的架构">Netflix推荐系统的架构</h2>
+<p>Netflix的工程师Xavier Amatrain和Justin Basilico在官方博客发布文章，介绍了自己的个性化和推荐系统架构。该推荐系统，能够处理海量现有数据、响应用户交互，还方便集成新的推荐算法。其架构如下图所示。</p>
+<p><img src="/img/introduction-to-netflix/frameworkofnetflixrs.jpg" alt="Netflix的推荐系统架构"></p>
+<p>系统分为在线计算模块、离线计算模块和接近在线计算模块三个部分。<br>对于在线计算，相关组件需要满足SLA对可用性和响应时间的要求，而且纯粹的在线计算在某型情形下可能无法满足SLA，因此，快速的备用方案就很重要，比如返回预先计算好的结果等。在线计算还需要不同的数据源确保在线可用，这需要额外的基础设施。 离线计算主要进行模型训练，在算法上可相对灵活，工程方面的需求也简单。客户端的SLA响应时间要求也不高。在部署新算法到生产环境时，对于性能调优的需求也不高。Netflix利用这种灵活性来完成快速实验：如果某个新的实验算法执行较慢，他们会部署更多Amazon EC2实例来达成吞吐处理目标，而不是花费宝贵的工程师时间去优化性能，因为业务价值可能不是很高。 接近在线计算与在线计算执行方式相同，但计算结果不是马上提供，而是暂时存储起来，使其具备异步性。接近在线计算的完成是为了响应用户事件，这样系统在请求之间响应速度更快。这样一来，针对每个事件就有可能完成更复杂的处理。增量学习算法很适合应用在接近在线计算中。</p>
+<h1 id="百万美元大奖">百万美元大奖</h1>
+<hr>
+<p>在2006年，NetFlix启动了Netflix大奖赛，这是一个机器学习和数据挖掘的比赛，旨在解决电影评分预测问题。NetFlix举办这个比赛的目的是为了发现更好的方法来向用户推荐产品，这是NetFlix商业模式的核心任务。对于能够将NetFlix的Cinematch系统的准确率提升10%的获胜团队，NetFlix准备了一百万美元的大奖。当然，NetFlix需要一个比较容易评测和量化的问题定义，选择的评测指标是RMSE—预测的评分与真实评分相差的均方根（root mean squared error）。竞赛的要求是要打败NetFlix现在推荐系统的0.9525的RMSE得分，并将其降低到0.8572或更低。<br>竞赛开始一年之后，队伍Korbell以8.43%的提升赢得了第一个半程奖。他们付出了超过2000小时的努力，融合了107种算法才得到了这份奖金。来自186个国家的四万多个团队经过近三年的较量，最终一个由工程师，统计学家，研究专家组成的团队夺得了Netflix大奖，该团队成功的将Netflix的影片推荐引擎的推荐效率提高了10%。Netflix大奖的参赛者们不断改进了影片推荐效率，Netflix的客户已经为此获益。NetFlix评测了一些最新的离线算法，但是很遗憾，这些在竞赛数据集上优胜的算法，到了线上系统却表现的不够出色。考虑到系统实现以及部署的代价，NetFlix最终并没有应用到NetFlix的线上环境。</p>
+]]></content>
+    <summary type="html">
+    <![CDATA[<h1 id="Netflix公司简介">Netflix公司简介</h1>
+<hr>
+<p>Netflix是一家美国公司，在美国、加拿大提供互联网流媒体播放、DVD、蓝光光碟在线出租业务，中文名为“网飞”。该公司成立于1997年，总部位于加利福尼亚州洛斯盖图，1999年开始订阅服]]>
+    </summary>
+    
+      <category term="Netflix" scheme="http://baogege.info/tags/Netflix/"/>
+    
+      <category term="推荐系统" scheme="http://baogege.info/tags/%E6%8E%A8%E8%8D%90%E7%B3%BB%E7%BB%9F/"/>
+    
+      <category term="IT杂谈" scheme="http://baogege.info/categories/IT%E6%9D%82%E8%B0%88/"/>
+    
+  </entry>
+  
+  <entry>
+    <title><![CDATA[排序学习在个性化推荐中的应用]]></title>
+    <link href="http://baogege.info/2014/10/19/learning-to-rank-for-recommender-system/"/>
+    <id>http://baogege.info/2014/10/19/learning-to-rank-for-recommender-system/</id>
+    <published>2014-10-19T12:44:29.000Z</published>
+    <updated>2016-05-06T03:19:30.000Z</updated>
+    <content type="html"><![CDATA[<h1 id="排序学习简介">排序学习简介</h1>
+<hr>
+<p>排序学习是信息检索领域应用较为广泛的一种方法，传统的检索模型靠人工拟合排序公式，所考虑的因素并不多，主要是利用词频、逆文档频率和文档长度这几个因子来人工拟合排序公式。并通过不断的实验确定最佳的参数组合，以此来形成相关性打分函数。排序学习则与此思路不同，最合理的排序公式由机器自动学习获得，而人则需要给机器学习提供训练数据。就是说排序学习是使用机器学习的方法直接优化排序列表，得到一个排序函数，从来对特定查询的相关文档进行排序，其目的是为了得到一个最优的文档排序。</p>
+<h1 id="个性化推荐中应用排序学习">个性化推荐中应用排序学习</h1>
+<hr>
+<p>目前推荐系统的研究主要分为两大方向，其中一类为评分预测问题；另一类为Top-K推荐问题。传统基于记忆的方法（User-CF，Item-CF），基于模型的方法（基本矩阵分解，带偏置矩阵分解，概率矩阵分解）等都是解决评分预测问题，大多都通过优化评分误差（均方根误差，RMSE）来训练模型。如果要进行Top-K列表推荐则只能通过预测评分降序排列得到Top-K列表，但是我们很容易知道，好的评分准确率并不一定能产生一个好的排序列表，因而这些方法并不能得到一个好的排序。Top-K推荐其实更加贴近用户需求，因为用户关注的往往是一个列表，尤其是排序在最前面的Item列表，通过直接优化Top-K列表往往能使推荐系统得到更好的用户体验。</p>
+<p>信息检索领域中的排序学习方法以查询-文档特征对作为输入，通过学习一个排序函数对新的查询-文档对进行相关性预测，针对特定查询得到一个排序好的文档列表，其流程图如下图所示。类似地，在个性化推荐领域中，目的是为给特定用户提供一个感兴趣的Item列表，用户关注的往往是排在前几位的Item，因此这也是一个排序问题，将查询-文档对类似为User-Item对，可以借鉴排序学习的思想直接优化Item的排序。</p>
+<p><img src="/img/learning-to-rank-for-recommender-system/ltr4rs.png" alt="排序学习在推荐中的应用示意图"></p>
+<h1 id="基于排序学习的推荐方法">基于排序学习的推荐方法</h1>
+<hr>
+<p>信息检索中的排序学习方法需要输入显性的文档特征，而个性化推荐中不论是User还是Item都没有显性特征作为输入，输入特征较为简单，一般都只有User-Item评分记录。因此在个性化推荐领域应用的排序学习方法和信息检索领域的排序学习还是有一定区别的，需要另辟蹊径。和基本排序学习类似，基于排序学习的推荐方法也主要分为三大类，分别是Point-wise，Pair-wise和List-wise，下面对这三种方法分别作简单介绍。</p>
+<h2 id="Point-wise">Point-wise</h2>
+<p>传统的协同过滤，矩阵分解(<a href="http://baogege.info/2014/05/27/matrix-factorization-in-recommender-systems/" target="_blank" rel="external">了解更多关于矩阵分解</a>)等推荐方法都是基于Point-wise的方法，即只考虑单个Item的评分预测准确率，先进行评分预测再根据预测出来的评分降序排列得到一个推荐列表。这种方法没有明显考虑Item和Item之间的排序关系，因此并没有直接优化Item的排序，评分预测实际上是一个回归问题。</p>
+<h2 id="Pair-wise">Pair-wise</h2>
+<p>优化Item-Item偏序关系，预测时得到一个偏序矩阵，再将偏序矩阵转化成一个完整的排序列表。其示意图如下所示，图中“+”号表示用户对该行的Item喜好程度高于该列所代表的Item，最后将Item之间的偏序关系按照某种方法转化为一个完整的Item排序列表。</p>
+<p><img src="/img/learning-to-rank-for-recommender-system/pairwiseltrrs.png" alt="Pair-wise排序学习在推荐中的应用示意图"></p>
+<h2 id="List-wise">List-wise</h2>
+<p>List-wise方法选择直接优化整个排序列表，如直接优化衡量排序的指标NDCG等等，代表性的有Markus Weimer等提出的COFI-RANK，详见参考文献1，其示意图如下所示。训练出来的函数可直接对整个Item排序。</p>
+<p><img src="/img/learning-to-rank-for-recommender-system/listwiseltrrs.png" alt="List-wise排序学习在推荐中的应用示意图"></p>
+<h1 id="参考文献">参考文献</h1>
+<hr>
+<p><a href="http://machinelearning.wustl.edu/mlpapers/paper_files/NIPS2005_588.pdf" target="_blank" rel="external">1.Maximum Margin Matrix Factorization for Collaborative Ranking</a><br><a href="http://dl.acm.org/citation.cfm?id=2508063" target="_blank" rel="external">2.Learning to Rank for Recommender System</a></p>
+]]></content>
+    <summary type="html">
+    <![CDATA[<h1 id="排序学习简介">排序学习简介</h1>
+<hr>
+<p>排序学习是信息检索领域应用较为广泛的一种方法，传统的检索模型靠人工拟合排序公式，所考虑的因素并不多，主要是利用词频、逆文档频率和文档长度这几个因子来人工拟合排序公式。并通过不断的实验确定最佳的参数组合，以此来]]>
+    </summary>
+    
+      <category term="排序学习" scheme="http://baogege.info/tags/%E6%8E%92%E5%BA%8F%E5%AD%A6%E4%B9%A0/"/>
+    
+      <category term="推荐系统" scheme="http://baogege.info/tags/%E6%8E%A8%E8%8D%90%E7%B3%BB%E7%BB%9F/"/>
+    
+      <category term="推荐系统" scheme="http://baogege.info/categories/%E6%8E%A8%E8%8D%90%E7%B3%BB%E7%BB%9F/"/>
+    
+  </entry>
+  
+  <entry>
+    <title><![CDATA[个性化推荐中的矩阵分解技术]]></title>
+    <link href="http://baogege.info/2014/10/19/matrix-factorization-in-recommender-systems/"/>
+    <id>http://baogege.info/2014/10/19/matrix-factorization-in-recommender-systems/</id>
+    <published>2014-10-19T12:15:30.000Z</published>
+    <updated>2016-05-06T03:19:54.000Z</updated>
+    <content type="html"><![CDATA[<h1 id="引言">引言</h1>
+<p><em>随着Netflix Prize推荐比赛的成功举办，近年来隐语义模型(Latent Factor Model, LFM)受到越来越多的关注。隐语义模型最早在文本挖掘领域被提出，用于寻找文本的隐含语义，相关的模型常见的有潜在语义分析(Latent Semantic Analysis, LSA)、LDA(Latent Dirichlet Allocation)的主题模型(Topic Mdel),矩阵分解(Matrix Factorization)等等。其中矩阵分解技术是实现隐语义模型使用最为广泛的一种方法，其思想也正是来源于此，著名的推荐领域大神Yehuda Koren更是凭借矩阵分解模型勇夺Netflix Prize推荐比赛冠军，以矩阵分解为基础，Yehuda Koren在数据挖掘和机器学习相关的国际顶级会议(SIGIR,SIGKDD,RecSys等)发表了很多文章，将矩阵分解模型的优势发挥得淋漓尽致。实验结果表明，在个性化推荐中使用矩阵分解模型要明显优于传统的基于邻域的协同过滤(又称基于记忆的协同过滤)方法，如UserCF、ItemCF等，这也使得矩阵分解成为了目前个性化推荐研究领域中的主流模型。</em></p>
+<h1 id="写在前面">写在前面</h1>
+<p>需要说明的是，协同过滤方法分为两大类，一类为上述基于领域（记忆）的方法，第二类为基于模型的方法，即隐语义模型，矩阵分解模型是隐语义模型最为成功的一种实现，不作特别说明的情况下，本文将隐语义模型和矩阵分解看作同一概念，User-Item矩阵和User-Item评分矩阵为同一概念。</p>
+<p>另外，奇异值分解(Singular Value Decomposition, SVD)，非负矩阵分解(Non-negative Matrix Factorization, NMF)，概率矩阵分解(Probability Matrix Factorization, PMF)等方法虽然也使用矩阵分解的思想，属于矩阵分解的范畴，但是其分解方法和本文有所不同，这些不是本文的讨论重点，我会在今后的博文中逐一进行讲解。</p>
+<h1 id="矩阵分解方法">矩阵分解方法</h1>
+<h2 id="基本思想">基本思想</h2>
+<p>我们都知道，现实生活中的User-Item矩阵极大(User数量极大、Item数量极大)，而用户的兴趣和消费能力有限，对单个用户来说消费的物品，产生评分记录的物品是极少的。这样造成了User-Item矩阵含有大量的空值，数据极为稀疏。矩阵分解的核心思想认为用户的兴趣只受少数几个因素的影响，因此将稀疏且高维的User-Item评分矩阵分解为两个低维矩阵，即通过User、Item评分信息来学习到的用户特征矩阵P和物品特征矩阵Q，通过重构的低维矩阵预测用户对产品的评分。由于用户和物品的特征向量维度比较低，因而可以通过梯度下降(Gradient Descend)的方法高效地求解，分解示意图如下所示。</p>
+<p><img src="/img/matrix-factorization-in-recommender-systems/matrix factorization.jpg" alt="矩阵分解示意图"></p>
+<h2 id="基本矩阵分解">基本矩阵分解</h2>
+<p>如上所述，User-Item评分矩阵维度较高且极为稀疏，传统的奇异值分解方法只能对稠密矩阵进行分解，即不允许所分解矩阵有空值。因而，若采用奇异值分解，需要首先填充User-Item评分矩阵，显然，这样造成了两个问题。</p>
+<ul>
+<li>其一，填充大大增加了数据量，增加了算法复杂度。</li>
+<li>其二，简单粗暴的数据填充很容易造成数据失真。</li>
+</ul>
+<p>这些问题导致了传统的SVD矩阵分解表现并不理想。之后，Simon Funk在博客上公开发表了一个只考虑已有评分记录的矩阵分解方法，称为<a href="http://sifter.org/~simon/journal/20061211.html" target="_blank" rel="external">Funk-SVD</a>，也就是被Yehuda Koren称为隐语义模型的矩阵分解方法。他简单地认为，既然我们的评价指标是均方根误差(Root Mean Squared Error, RMSE)，那么可以直接通过训练集中的观察值利用最小化RMSE学习用户特征矩阵P和物品特征Q，并用通过一个正则化项来避免过拟合。其需要优化的函数为</p>
+<p><img src="/img/matrix-factorization-in-recommender-systems/basicMFCostFunction.jpg" alt="矩阵分解损失函数"></p>
+<p>其中$K$为已有评分记录的$(u,i)$对集合，$r_{ui}$为用户$u$对物品$i$的真实评分，${\parallel q_i \parallel}^2+{\parallel p_u \parallel}^2$为防止过拟合的正则化项，$\lambda$为正则化系数。假设输入评分矩阵为$R$为$M\times N$维矩阵，通过直接优化以上损失函数得到用户特征矩阵$P$($M\times K$)和物品特征矩阵$Q$($K\times N$)，其中$K\ll M,N$。优化方法可以采用交叉最小二乘法或随机梯度下降方法。</p>
+<p>其评分预测方法为</p>
+<p>$$\hat{r_{ui}}=q_i^Tp_u$$</p>
+<p>其中$p_u$和$q_i$分别为用户$u$和物品$i$的特征向量，两者的内积即为所要预测的评分。</p>
+<h2 id="带偏置的矩阵分解">带偏置的矩阵分解</h2>
+<p>基本的矩阵分解方法通过学习用户和物品的特征向量进行预测，即用户和物品的交互信息。用户的特征向量代表了用户的兴趣，物品的特征向量代表了物品的特点，且每一个维度相互对应，两个向量的内积表示用户对该物品的喜好程度。但是我们观测到的评分数据大部分都是都是和用户或物品无关的因素产生的效果，即有很大一部分因素是和用户对物品的喜好无关而只取决于用户或物品本身特性的。例如，对于乐观的用户来说，它的评分行为普遍偏高，而对批判性用户来说，他的评分记录普遍偏低，即使他们对同一物品的评分相同，但是他们对该物品的喜好程度却并不一样。同理，对物品来说，以电影为例，受大众欢迎的电影得到的评分普遍偏高，而一些烂片的评分普遍偏低，这些因素都是独立于用户或产品的因素，而和用户对产品的的喜好无关。</p>
+<p>我们把这些独立于用户或独立于物品的因素称为偏置(Bias)部分，将用户和物品的交互即用户对物品的喜好部分称为个性化部分。事实上，在矩阵分解模型中偏好部分对提高评分预测准确率起的作用要大大高于个性化部分所起的作用，以Netflix Prize推荐比赛数据集为例为例，Yehuda Koren仅使用偏置部分可以将评分误差降低32%，而加入个性化部分能降低42%，也就是说只有10%是个性化部分起到的作用，这也充分说明了偏置部分所起的重要性，剩下的58%的误差Yehuda Koren将称之为模型不可解释部分，包括数据噪音等因素。</p>
+<p>偏置部分表示为</p>
+<p>$$b_{ui}=\mu+b_u+b_i$$</p>
+<p>偏置部分主要由三个子部分组成，分别是</p>
+<ul>
+<li>训练集中所有评分记录的全局平均数$\mu$，表示了训练数据的总体评分情况，对于固定的数据集，它是一个常数。</li>
+<li>用户偏置$b_u$，独立于物品特征的因素，表示某一特定用户的打分习惯。例如，对于批判性用户对于自己的评分比较苛刻，倾向于打低分；而乐观型用户则打分比较保守，总体打分要偏高。</li>
+<li>物品偏置$b_i$，特立于用户兴趣的因素，表示某一特定物品得到的打分情况。以电影为例，好片获得的总体评分偏高，而烂片获得的评分普遍偏低，物品偏置捕获的就是这样的特征。</li>
+</ul>
+<p>以上所有偏置和用户对物品的喜好无关，我们将偏置部分当作基本预测，在此基础上添加用户对物品的喜好信息，即个性化部分，因此得到总评分预测公式如下：</p>
+<p><img src="/img/matrix-factorization-in-recommender-systems/biasMFCostFunction.jpg" alt="偏置矩阵分解损失函数"></p>
+<p>优化以上函数，分别获得用户特征矩阵$P$、物品特征矩阵$Q$、各用户偏置$b_u$、各物品偏置$b_i$，优化方法仍可采用交叉最小二乘或随机梯度下降。</p>
+<h1 id="矩阵分解的优缺点">矩阵分解的优缺点</h1>
+<p>矩阵分解方法将高维User-Item评分矩阵映射为两个低维用户和物品矩阵，解决了数据稀疏性问题。使用矩阵分解具有以下优点：</p>
+<ul>
+<li>比较容易编程实现，随机梯度下降方法依次迭代即可训练出模型。<br>比较低的时间和空间复杂度，高维矩阵映射为两个低维矩阵节省了存储空间，训练过程比较费时，但是可以离线完成；评分预测一般在线计算，直接使用离线训练得到的参数，可以实时推荐。</li>
+<li>预测的精度比较高，预测准确率要高于基于领域的协同过滤以及内容过滤等方法。</li>
+<li>非常好的扩展性，很方便在用户特征向量和物品特征向量中添加其它因素，例如添加隐性反馈因素的SVD++，此方法的详细实现参见文献[3]；添加时间动态time SVD++，此方法将偏置部分和用户兴趣都表示成一个关于时间的函数，可以很好的捕捉到用户的兴趣漂移，欲知详细实现请阅读文献[4]。<br>矩阵分解的不足主要有：</li>
+<li>模型训练比较费时。</li>
+<li>推荐结果不具有很好的可解释性，分解出来的用户和物品矩阵的每个维度* 无法和现实生活中的概念来解释，无法用现实概念给每个维度命名，只能理解为潜在语义空间。</li>
+</ul>
+<h1 id="参考文献">参考文献</h1>
+<p><a href="http://sifter.org/~simon/journal/20061211.html" target="_blank" rel="external">[1]Funk-SVD</a><br><a href="https://datajobs.com/data-science-repo/Recommender-Systems-[Netflix].pdf" target="_blank" rel="external">[2]Koren Y, Bell R, Volinsky C. Matrix factorization techniques for recommender systems</a><br><a href="http://dl.acm.org/citation.cfm?id=1401944" target="_blank" rel="external">[3]Koren Y. Factorization meets the neighborhood: a multifaceted collaborative filtering model</a><br><a href="http://dl.acm.org/citation.cfm?id=1721677" target="_blank" rel="external">[4]Koren Y. Collaborative filtering with temporal dynamics</a></p>
+]]></content>
+    <summary type="html">
+    <![CDATA[<h1 id="引言">引言</h1>
+<p><em>随着Netflix Prize推荐比赛的成功举办，近年来隐语义模型(Latent Factor Model, LFM)受到越来越多的关注。隐语义模型最早在文本挖掘领域被提出，用于寻找文本的隐含语义，相关的模型常见的有潜在语义分]]>
+    </summary>
+    
+      <category term="推荐系统" scheme="http://baogege.info/tags/%E6%8E%A8%E8%8D%90%E7%B3%BB%E7%BB%9F/"/>
+    
+      <category term="矩阵分解" scheme="http://baogege.info/tags/%E7%9F%A9%E9%98%B5%E5%88%86%E8%A7%A3/"/>
+    
+      <category term="隐语义模型" scheme="http://baogege.info/tags/%E9%9A%90%E8%AF%AD%E4%B9%89%E6%A8%A1%E5%9E%8B/"/>
+    
+      <category term="协同过滤" scheme="http://baogege.info/tags/%E5%8D%8F%E5%90%8C%E8%BF%87%E6%BB%A4/"/>
+    
+      <category term="推荐系统" scheme="http://baogege.info/categories/%E6%8E%A8%E8%8D%90%E7%B3%BB%E7%BB%9F/"/>
+    
+  </entry>
+  
+  <entry>
+    <title><![CDATA[My First Blog]]></title>
+    <link href="http://baogege.info/2014/10/19/My-First-Blog/"/>
+    <id>http://baogege.info/2014/10/19/My-First-Blog/</id>
+    <published>2014-10-19T11:28:58.000Z</published>
+    <updated>2016-05-06T03:20:24.000Z</updated>
+    <content type="html"><![CDATA[<h1 id="我为什么要写博客">我为什么要写博客</h1>
+<hr>
+<p>写博客的动机由来已久，经常在网络上看到各种技术大牛分享自己的学习心得，膜拜之情真如涛涛江水，像我这种水货也就只有羡慕嫉妒恨的份了。水货固然是水货，但是向往大神的心是一直都在的。最近在做阿里巴巴推荐算法比赛，看到了很多大牛在论坛博客上分享自己的想法，我激动了，没有一个专属自己的博客是不行的。《数学之美》的作者吴军博士在书中曾有专门一章介绍各种写博客的好处，而我的动机主要有以下几个：</p>
+<ul>
+<li>装个牛逼，有自己的域名，有自己原创的文章，以后总是可以有点儿拿得出手的东西。</li>
+<li>原创，程序员写博客的地方有很多，CSDN，博客园等等，然而在那些地方我却老找不到归属感，那儿终究不是自己的地方，而自己博客从域名到页面中的每一个元素全部都掌握在自己手中，自己的东西不会有广告，完全按照自己的想法来，很有成就感。程序员嘛，总是希望把一切都控制在自己手里。</li>
+<li>分享，分享是一种美德，博客中和志同道合的朋友分享idea，定能产生思想上的碰撞，带来灵感。</li>
+<li>学习，在书写博客的过程中需要对自己的所学进行总结，对相关的方法或模型肯定会有更加深刻的理解，对自己也是一种提高和学习的过程。</li>
+</ul>
+<h1 id="我是怎么搭建博客的">我是怎么搭建博客的</h1>
+<hr>
+<p>自己搭建博客之前一直觉得自己实现一个博客系统是一件费钱费时费力并且很高端的事情，自己动手了才发现，哪怕是一个非计算机专业的同学要完成一个博客系统也并不是一件什么难事，所谓的高端大气上档次真是呵呵了。所以呢，很多事情只有自己动手了才知道。</p>
+<p>搭建博客的过程中非常感谢网友<a href="http://wuchong.me/" target="_blank" rel="external">@WuChong</a>和<a href="http://zipperary.com/" target="_blank" rel="external">@Zippery</a>的技术支持，他们的博客中对于如何搭建博客讲得非常清楚明白，让我这个新手菜鸟少走了很多弯路，嗯，这就是分享的美德，我简要说说搭建博客的步骤。</p>
+<ul>
+<li>建站工具，前辈们对比了各种工具的优缺点，他们栽树我好乘凉了，Hexo是个很好的工具，我也选择了它。</li>
+<li>注册域名,大家都说国外的GoDaddy注册域名比较靠谱用户体验也很好，所以我毫不犹豫地在GoDaddy上注册了域名，高端的域名注册不起呀，我的域名只花了3刀。</li>
+<li>DNS服务，根据前人的经验，用的是dnspod，访问速度不错。</li>
+<li>托管，GitCafe，和GitHub类似，相关教程有很多可借参考。一开始以为要租个云服务器什么的，原来不需要，DNS服务和托管都免费，没有比这更实惠的事儿了。</li>
+<li>博客编写，用的是markdown，简单易学，相关教程也很多。</li>
+</ul>
+<h1 id="我会怎么使用博客">我会怎么使用博客</h1>
+<hr>
+<p>写博客主要是为了分享，一直以来，碰到问题都是在网络上按照别人的方法解决问题的，通过别人的分享得到了太多志同道合网友的帮助，分享是一种美德，希望今后以此博客为契机，自己也能发点儿光和热，为别人解决一些问题。同时既然是自己费钱费时搞的东西，原创性是一定要保证的。</p>
+<p>博客的内容以学术为主，生活为辅，记录自己的所学，所见，所感，希望每一篇博客都能看到自己成长、进步的影子。文笔不好，牢骚难免，各位不喜勿喷，博客搭建虽易，坚持不易，且写且珍惜。</p>
+<h1 id="吐槽">吐槽</h1>
+<hr>
+<p>这是本人第二次搭建博客了，第一次搭建好的成果因为实验室电脑重装系统不小心删除了，结果费时又费力地再来搭建了一次，第二次搭建却并没有第一次那么顺利，其中碰到了各种各样的问题，累觉不爱的感觉。在此提醒各位，数据一定要备份，千万不要手贱乱删东西～</p>
+<h1 id="参考文献">参考文献</h1>
+<hr>
+<p><a href="http://zipperary.com/categories/hexo/" target="_blank" rel="external">Hexo博客搭建教程</a><br><a href="http://zipperary.com/categories/hexo/" target="_blank" rel="external">Hexo系统教程</a><br><a href="http://www.ituring.com.cn/article/23" target="_blank" rel="external">怎么使用Markdown</a><br><a href="http://zipperary.com/2013/11/23/hexo-to-gitcafe/" target="_blank" rel="external">托管博客到gitcafe</a><br><a href="https://help.github.com/articles/generating-ssh-keys" target="_blank" rel="external">设置SSH公钥</a></p>
+]]></content>
+    <summary type="html">
+    <![CDATA[<h1 id="我为什么要写博客">我为什么要写博客</h1>
+<hr>
+<p>写博客的动机由来已久，经常在网络上看到各种技术大牛分享自己的学习心得，膜拜之情真如涛涛江水，像我这种水货也就只有羡慕嫉妒恨的份了。水货固然是水货，但是向往大神的心是一直都在的。最近在做阿里巴巴推荐算法]]>
+    </summary>
+    
+      <category term="hexo" scheme="http://baogege.info/tags/hexo/"/>
+    
+      <category term="个人博客" scheme="http://baogege.info/tags/%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2/"/>
+    
+      <category term="gitcafe" scheme="http://baogege.info/tags/gitcafe/"/>
+    
+      <category term="个人随笔" scheme="http://baogege.info/categories/%E4%B8%AA%E4%BA%BA%E9%9A%8F%E7%AC%94/"/>
+    
+  </entry>
+  
+  <entry>
+    <title><![CDATA[Hello World]]></title>
+    <link href="http://baogege.info/2014/10/17/hello-world/"/>
+    <id>http://baogege.info/2014/10/17/hello-world/</id>
+    <published>2014-10-17T09:11:54.000Z</published>
+    <updated>2014-10-18T14:12:23.000Z</updated>
+    <content type="html"><![CDATA[<p>Welcome to <a href="http://hexo.io/" target="_blank" rel="external">Hexo</a>! This is your very first post. Check <a href="http://hexo.io/docs/" target="_blank" rel="external">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a href="http://hexo.io/docs/troubleshooting.html" target="_blank" rel="external">trobuleshooting</a> or you can ask me on <a href="https://github.com/hexojs/hexo/issues" target="_blank" rel="external">GitHub</a>.</p>
+<h2 id="Quick_Start">Quick Start</h2>
+<h3 id="Create_a_new_post">Create a new post</h3>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">$ hexo new <span class="string">"My New Post"</span></div></pre></td></tr></table></figure>
+
+<p>More info: <a href="http://hexo.io/docs/writing.html" target="_blank" rel="external">Writing</a></p>
+<h3 id="Run_server">Run server</h3>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">$ hexo server</div></pre></td></tr></table></figure>
+
+<p>More info: <a href="http://hexo.io/docs/server.html" target="_blank" rel="external">Server</a></p>
+<h3 id="Generate_static_files">Generate static files</h3>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">$ hexo generate</div></pre></td></tr></table></figure>
+
+<p>More info: <a href="http://hexo.io/docs/generating.html" target="_blank" rel="external">Generating</a></p>
+<h3 id="Deploy_to_remote_sites">Deploy to remote sites</h3>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">$ hexo deploy</div></pre></td></tr></table></figure>
+
+<p>More info: <a href="http://hexo.io/docs/deployment.html" target="_blank" rel="external">Deployment</a></p>
+]]></content>
+    <summary type="html">
+    <![CDATA[<p>Welcome to <a href="http://hexo.io/" target="_blank" rel="external">Hexo</a>! This is your very first post. Check <a href="http://hexo.io]]>
+    </summary>
+    
+      <category term="hexo" scheme="http://baogege.info/tags/hexo/"/>
+    
+      <category term="default" scheme="http://baogege.info/categories/default/"/>
+    
+  </entry>
+  
+</feed>

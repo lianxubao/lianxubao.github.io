@@ -1,0 +1,496 @@
+
+ <!DOCTYPE HTML>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  
+    <title>不平衡数据下的机器学习方法简介 | Xubao&#39;s blog</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=3, minimum-scale=1">
+    
+    <meta name="author" content="Xubao">
+    
+    <meta name="description" content="机器学习已经成为了当前互联网领域不可或缺的技术之一，前辈们对机器学习模型的研究已经给我们留下了一笔非常宝贵的财富，然而在工业界的应用中我们可以看到，应用场景千千万万，数据千千万万但是我们的模型却依然是那些，在机器学习的应用中对数据的处理与分析往往扮演着比模型更加重要的角色，本文针对机器学习应用数据处">
+    
+    
+    
+    
+    <link rel="alternate" href="/atom.xml" title="Xubao&#39;s blog" type="application/atom+xml">
+    
+    
+    <link rel="icon" href="/img/favicon.ico">
+    
+    
+    <link rel="apple-touch-icon" href="/img/pacman.jpg">
+    <link rel="apple-touch-icon-precomposed" href="/img/pacman.jpg">
+    
+    <link rel="stylesheet" href="/css/style.css" type="text/css">
+
+</head>
+
+  <body>
+    <header>
+      <div>
+		
+			<div id="imglogo">
+				<a href="/"><img src="/img/logo.svg" alt="Xubao&#39;s blog" title="Xubao&#39;s blog"/></a>
+			</div>
+			
+			<div id="textlogo">
+				<h1 class="site-name"><a href="/" title="Xubao&#39;s blog">Xubao&#39;s blog</a></h1>
+				<h2 class="blog-motto">所谓的成功只有一个，就是按照自己的方式去度过人生</h2>
+			</div>
+			<div class="navbar"><a class="navbutton navmobile" href="#" title="菜单">
+			</a></div>
+			<nav class="animated">
+				<ul>
+					<ul>
+					 
+						<li><a href="/">首页</a></li>
+					
+						<li><a href="/archives">归档</a></li>
+					
+						<li><a href="/about">关于</a></li>
+					
+						<li><a href="/atom.xml">订阅</a></li>
+					
+					<li>
+					
+					<form class="search" action="//baidu.com/s" method="get" accept-charset="utf-8">
+						<label>Search</label>
+						<input type="text" id="search" name="wd" autocomplete="off" maxlength="20" placeholder="搜索" />
+                        <input name=tn type=hidden value="bds">
+                        <input name=cl type=hidden value="3">
+                        <input name=ct type=hidden value="2097152">
+						<input type="hidden" name="si" value="baogege.info">
+					</form>
+					
+					</li>
+					
+				</ul>
+			</nav>			
+</div>
+
+    </header>
+    <div id="container">
+      <div id="main" class="post" itemscope itemprop="blogPost">
+
+	<article itemprop="articleBody"> 
+		<header class="article-info clearfix">
+  <h1 itemprop="name">
+    
+      <a href="/2015/11/16/learning-from-imbalanced-data/" title="不平衡数据下的机器学习方法简介" itemprop="url">不平衡数据下的机器学习方法简介</a>
+  </h1>
+  <p class="article-author">By
+    
+      <a href="http://baogege.info" title="Xubao">Xubao</a>
+    </p>
+  <p class="article-time">
+    <time datetime="2015-11-16T14:01:18.000Z" itemprop="datePublished">11月 16 2015</time>
+    更新日期:<time datetime="2016-05-07T12:43:22.000Z" itemprop="dateModified">5月 7 2016</time>
+    
+  </p>
+</header>
+
+	<div class="article-content">
+		
+		
+		<div id="toc" class="toc-article">
+			<strong class="toc-title">文章目录</strong>
+		<ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#引言"><span class="toc-number">1.</span> <span class="toc-text">引言</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#问题定义"><span class="toc-number">1.1.</span> <span class="toc-text">问题定义</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#为什么不平衡学习"><span class="toc-number">1.2.</span> <span class="toc-text">为什么不平衡学习</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#不平衡学习的方法"><span class="toc-number">2.</span> <span class="toc-text">不平衡学习的方法</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#采样"><span class="toc-number">2.1.</span> <span class="toc-text">采样</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#随机采样"><span class="toc-number">2.1.1.</span> <span class="toc-text">随机采样</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#SMOTE算法"><span class="toc-number">2.1.2.</span> <span class="toc-text">SMOTE算法</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Informed_Undersampling"><span class="toc-number">2.1.3.</span> <span class="toc-text">Informed Undersampling</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#代价敏感学习"><span class="toc-number">2.2.</span> <span class="toc-text">代价敏感学习</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#代价矩阵"><span class="toc-number">2.2.1.</span> <span class="toc-text">代价矩阵</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#代价敏感学习方法"><span class="toc-number">2.2.2.</span> <span class="toc-text">代价敏感学习方法</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#AdaCost算法"><span class="toc-number">2.2.3.</span> <span class="toc-text">AdaCost算法</span></a></li></ol></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#不平衡学习的评价方法"><span class="toc-number">3.</span> <span class="toc-text">不平衡学习的评价方法</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#正确率和F值"><span class="toc-number">3.1.</span> <span class="toc-text">正确率和F值</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#G-Mean"><span class="toc-number">3.2.</span> <span class="toc-text">G-Mean</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#ROC曲线和AUC"><span class="toc-number">3.3.</span> <span class="toc-text">ROC曲线和AUC</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#总结"><span class="toc-number">4.</span> <span class="toc-text">总结</span></a></li></ol>
+		</div>
+		
+		<blockquote>
+<p>机器学习已经成为了当前互联网领域不可或缺的技术之一，前辈们对机器学习模型的研究已经给我们留下了一笔非常宝贵的财富，然而在工业界的应用中我们可以看到，应用场景千千万万，数据千千万万但是我们的模型却依然是那些，在机器学习的应用中对数据的处理与分析往往扮演着比模型更加重要的角色，本文针对机器学习应用数据处理的一个方面即“不平衡数据”下的机器学习方法进行了简单介绍。</p>
+</blockquote>
+<hr>
+<h1 id="引言">引言</h1>
+<p>不管是在学术界还是工业界，不平衡学习已经吸引了越来越多的关注，不平衡数据的场景也出现在互联网应用的方方面面，如搜索引擎的点击预测（点击的网页往往占据很小的比例），电子商务领域的商品推荐（推荐的商品被购买的比例很低），信用卡欺诈检测，网络攻击识别等等。</p>
+<h2 id="问题定义">问题定义</h2>
+<p>那么什么是不平衡数据呢？顾名思义即我们的数据集样本类别极不均衡，以二分类问题为例，假设我们的数据集是$S$，数据集中的多数类为$S<em>{maj}$，少数类为$S</em>{min}$，通常情况下把多数类样本的比例为$100:1$,$1000:1$，甚至是$10000:1$这种情况下为不平衡数据，不平衡数据的学习即需要在如此分布不均匀的数据集中学习到有用的信息。</p>
+<h2 id="为什么不平衡学习">为什么不平衡学习</h2>
+<p>传统的学习方法以降低总体分类精度为目标，将所有样本一视同仁，同等对待，如下图1所示，造成了分类器在多数类的分类精度较高而在少数类的分类精度很低。机器学习模型都有一个待优化的损失函数，以我们最常用最简单的二元分类器逻辑回归为例，其损失函数如下公式1所示，逻辑回归以优化总体的精度为目标，不同类别的误分类情况产生的误差是相同的，考虑一个$500:1$的数据集，即使把所有样本都预测为多数类其精度也能达到$500/501$之高，很显然这并不是一个很好的学习效果，因此传统的学习算法在不平衡数据集中具有较大的局限性。<br><img src="/img/learning-from-imbalanced-data/1.png" alt="图1 传统学习在不平衡数据下的缺点"><br><img src="/img/learning-from-imbalanced-data/2.png" alt="公式1 逻辑回归的交叉熵损失函数"></p>
+<hr>
+<h1 id="不平衡学习的方法">不平衡学习的方法</h1>
+<p>既然传统的学习算法在不平衡数据中具有较大的局限性，那么针对不平衡数据集又有怎样的解决方案呢？解决方法主要分为两个方面，第一种方案主要从数据的角度出发，主要方法为抽样，既然我们的样本是不平衡的，那么可以通过某种策略进行抽样，从而让我们的数据相对均衡一些；第二种方案从算法的角度出发，考虑不同误分类情况代价的差异性对算法进行优化，使得我们的算法在不平衡数据下也能有较好的效果。</p>
+<h2 id="采样">采样</h2>
+<h3 id="随机采样">随机采样</h3>
+<p>采样算法通过某一种策略改变样本的类别分布，以达到将不平衡分布的样本转化为相对平衡分布的样本的目的，而随机采样是采样算法中最简单也最直观易懂的一种方法。随机采样主要分为两种类型，分别为随机欠采样和随机过采样两种。随机欠采样顾名思义即从多数类$S_maj$中随机选择少量样本$E$再合并原有少数类样本作为新的训练数据集，新数据集为$S_min+E$，随机欠采样有两种类型分别为有放回和无放回两种，无放回欠采样在对多数类某样本被采样后不会再被重复采样，有放回采样则有可能。随机过采样则正好相反，即通过多次有放回随机采样从少数类$S_min$中抽取数据集$E$，采样的数量要大于原有少数类的数量，最终的训练集为$S_maj+E$。</p>
+<p>可以看到随机采样通过改变多数类或少数类样本比例以达到修改样本分布的目的，从而让样本分布较为均衡，但是他们也存在一些问题。对于随机欠采样，由于采样的样本要少于原样本集合，因此会造成一些信息缺失，未被采样的样本往往带有很重要的信息。对于随机过采样，由于需要对少数类样本进行复制因此扩大了数据集，造成模型训练复杂度加大，另一方面也容易造成模型的过拟合问题。针对这些问题提出了几种其它的采样算法。</p>
+<h3 id="SMOTE算法">SMOTE算法</h3>
+<p>SMOTE全称是Synthetic Minority Oversampling Technique即合成少数类过采样技术，它是基于随机过采样算法的一种改进方案，由于随机过采样采取简单复制样本的策略来增加少数类样本，这样容易产生模型过拟合的问题，即使得模型学习到的信息过于特别(Specific)而不够泛化(General)，SMOTE算法的基本思想是对少数类样本进行分析并根据少数类样本人工合成新样本添加到数据集中，具体如图2所示，算法流程如下。</p>
+<ol>
+<li>对于少数类中每一个样本$x$，以欧氏距离为标准计算它到少数类样本集$S_min$中所有样本的距离，得到其k近邻。</li>
+<li>根据样本不平衡比例设置一个采样比例以确定采样倍率$N$，对于每一个少数类样本$x$，从其k近邻中随机选择若干个样本，假设选择的近邻为$\hat{x}$。</li>
+<li>对于每一个随机选出的近邻$\hat{x}$，分别与原样本按照如下的公式构建新的样本。<br><img src="/img/learning-from-imbalanced-data/3.png" alt=""><br><img src="/img/learning-from-imbalanced-data/4.png" alt="图2 SMOTE算法"><br>SMOTE算法摒弃了随机过采样复制样本的做法，可以防止随机过采样易过拟合的问题，实践证明此方法可以提高分类器的性能。但是由于对每个少数类样本都生成新样本，因此容易发生生成样本重叠(Overlapping)的问题，为了解决SMOTE算法的这一缺点提出一些改进算法，其中的一种是Borderline-SMOTE算法，如图3所示。<br>在Borderline-SMOTE中，若少数类样本的每个样本$x_i$求k近邻，记作$S_i-knn$，且$S_i-knn$属于整个样本集合$S$而不再是少数类样本，若满足<br><img src="/img/learning-from-imbalanced-data/5.png" alt=""><br>则将样本$x_i$加入DANGER集合，显然DANGER集合代表了接近分类边界的样本，将DANGER当作SMOTE种子样本的输入生成新样本。特别地，当上述条件取右边界，即k近邻中全部样本都是多数类时，此样本不会被选择为种样本生成新样本，此情况下的样本为噪音。<br><img src="/img/learning-from-imbalanced-data/6.png" alt="图3 Borderline-SMOTE算法"></li>
+</ol>
+<h3 id="Informed_Undersampling">Informed Undersampling</h3>
+<p>既然SMOTE可以解决随机过采样容易发生的模型过拟合问题，对应地也有一些采样方法可以解决随机欠采样造成的数据信息丢失问题，答案是Informed undersampling采样技术，informed undersampling采样技术主要有两种方法分别是EasyEnsemble算法和BalanceCascade算法。<br>EasyEnsemble算法如下图4所示，此算法类似于随机森林的Bagging方法，它把数据划分为两部分，分别是多数类样本和少数类样本，对于多数类样本$S_maj$，通过n次有放回抽样生成n份子集，少数类样本分别和这n份样本合并训练一个模型，这样可以得到n个模型，最终的模型是这n个模型预测结果的平均值。BalanceCascade算法是一种级联算法，BalanceCascade从多数类$S_maj$中有效地选择N且满足$\midN\mid=\midS_min\mid$，将N和$\S_min$合并为新的数据集进行训练，新训练集对每个多数类样本$x_i$进行预测若预测对则$S_maj=S_maj-x_i$。依次迭代直到满足某一停止条件，最终的模型是多次迭代模型的组合。<br><img src="/img/learning-from-imbalanced-data/7.png" alt="图4 EasyEsemble算法"></p>
+<h2 id="代价敏感学习">代价敏感学习</h2>
+<h3 id="代价矩阵">代价矩阵</h3>
+<p>采样算法从数据层面解决不平衡数据的学习问题，在算法层面上解决不平衡数据学习的方法主要是基于代价敏感学习算法(Cost-Sensitive Learning)，代价敏感学习方法的核心要素是代价矩阵，我们注意到在实际的应用中不同类型的误分类情况导致的代价是不一样的，例如在医疗中，“将病人误疹为健康人”和“将健康人误疹为病人”的代价不同；在信用卡盗用检测中，“将盗用误认为正常使用”与“将正常使用识破认为盗用”的代价也不相同，因此我们定义代价矩阵如下图5所示。标记$C_ij$为将类别j误分类为类别i的代价，显然$C_00=C_11=0$，$C_01,C_10$为两种不同的误分类代价，当两者相等时为代价不敏感的学习问题。<br><img src="/img/learning-from-imbalanced-data/8.png" alt="图5 代价矩阵"></p>
+<h3 id="代价敏感学习方法">代价敏感学习方法</h3>
+<p>基于以上代价矩阵的分析，代价敏感学习方法主要有以下三种实现方式，分别是：</p>
+<ol>
+<li>从学习模型出发，着眼于对某一具体学习方法的改造，使之能适应不平衡数据下的学习，研究者们针对不同的学习模型如感知机，支持向量机，决策树，神经网络等分别提出了其代价敏感的版本。以代价敏感的决策树为例，可从三个方面对其进行改进以适应不平衡数据的学习，这三个方面分别是决策阈值的选择方面、分裂标准的选择方面、剪枝方面，这三个方面中都可以将代价矩阵引入，具体实现算法可参考参考文献中的相关文章。</li>
+<li>从贝叶斯风险理论出发，把代价敏感学习看成是分类结果的一种后处理，按照传统方法学习到一个模型，以实现损失最小为目标对结果进行调整，优化公式如下所示。此方法的优点在于它可以不依赖所用具体的分类器，但是缺点也很明显它要求分类器输出值为概率。<br><img src="/img/learning-from-imbalanced-data/9.png" alt=""></li>
+<li>从预处理的角度出发，将代价用于权重的调整，使得分类器满足代价敏感的特性，下面讲解一种基于Adaboost的权重更新策略。</li>
+</ol>
+<h3 id="AdaCost算法">AdaCost算法</h3>
+<p>让我们先来简单回顾一下Adaboost算法，如下图6所示。Adaboost算法通过反复迭代，每一轮迭代学习到一个分类器，并根据当前分类器的表现更新样本的权重，如图中红框所示，其更新策略为正确分类样本权重降低，错误分类样本权重加大，最终的模型是多次迭代模型的一个加权线性组合，分类越准确的分类器将会获得越大的权重。<br><img src="/img/learning-from-imbalanced-data/10.png" alt="图6 Adaboost算法"><br>AdaCost算法修改了Adaboost算法的权重更新策略，其基本思想是对于代价高的误分类样本大大地提高其权重，而对于代价高的正确分类样本适当地降低其权重，使其权重降低相对较小。总体思想是代价高样本权重增加得大降低得慢。其样本权重按照如下公式进行更新。其中$\beta<em>+$和$\beta</em>-$分别表示样本被正确和错误分类情况下$\beta$的取值。<br><img src="/img/learning-from-imbalanced-data/11.png" alt=""></p>
+<hr>
+<h1 id="不平衡学习的评价方法">不平衡学习的评价方法</h1>
+<h2 id="正确率和F值">正确率和F值</h2>
+<p>正确率和F值的计算都是基于混淆矩阵(Confusion Matrix)的，混淆矩阵如下图7所示，每行代表预测情况，每列代表实际类别，TP,FP,FN,TN分别代表正类正确分类数量，预测为正类但是真实为负类，预测为负类但是真实为正类，负类正确分类数量。<br><img src="/img/learning-from-imbalanced-data/12.png" alt="图7 混淆矩阵"><br>正确率(Accuracy)和F值的计算如下式所示。可见正确率或错误率并不能表示不平衡数据下模型的表现，对于不平衡数据即使全部预测为多数类也可以达到较高的正确率较低的错误率，而F值同时考虑到了少数类的准确率和召回率，因此能衡量不平衡数据下模型的表现，其中$\beta$取值通常为1。<br><img src="/img/learning-from-imbalanced-data/13.png" alt=""><br><img src="/img/learning-from-imbalanced-data/14.png" alt=""></p>
+<h2 id="G-Mean">G-Mean</h2>
+<p>G-Mean是另外一个指标，也能评价不平衡数据的模型表现，其计算公式如下。<br><img src="/img/learning-from-imbalanced-data/15.png" alt=""></p>
+<h2 id="ROC曲线和AUC">ROC曲线和AUC</h2>
+<p>为了介绍ROC曲线首先引入两个是，分别是FP_rate和TP_rate，它们分别表示1-负类召回率和正类召回率，显然模型表示最好的时候FP_rate=0且TP_rate=1，我们以FP_rate为横坐标，TP_rate为纵坐标可以得到点(FP_rate,TP_rate)，通过调整模型预测的阈值可以得到不同的点，将这些点可以连成一条曲线，这条曲线叫做接受者工作特征曲线(Receiver Operating Characteristic Curve，简称ROC曲线）如下图8所示。显然A点为最优点，ROC曲线越靠近A点代表模型表现越好，曲线下面积（Area Under Curve, AUC）越大，AUC是衡量模型表现好坏的一个重要指标。<br><img src="/img/learning-from-imbalanced-data/16.png" alt="图8 ROC曲线"></p>
+<hr>
+<h1 id="总结">总结</h1>
+<p>本文介绍了不平衡数据下学习的常用方法及其评价指标，方法主要从数据和模型两个层面考虑，数据方面的方法主要为采样算法，模型方面主要基于代价敏感学习。本文主要来源于论文“Learning from Imbalanced Data”，借着组会主讲的契机作了总结分享给各位，感谢师姐精美的PPT给了我很多灵感。</p>
+  
+	</div>
+		<footer class="article-footer clearfix">
+
+  <div class="article-tags">
+  
+  <span></span> <a href="/tags/机器学习/">机器学习</a>
+  </div>
+
+
+<div class="article-categories">
+  <span></span>
+  <a class="article-category-link" href="/categories/机器学习/">机器学习</a>
+</div>
+
+
+
+<div class="article-share" id="share">
+
+  <div data-url="http://baogege.info/2015/11/16/learning-from-imbalanced-data/" data-title="不平衡数据下的机器学习方法简介 | Xubao&#39;s blog" data-tsina="1849026987" class="share clearfix">
+  </div>
+
+</div>
+</footer>
+	<div class="bdsharebuttonbox"><a href="#" class="bds_more" data-cmd="more"></a><a href="#" class="bds_qzone" data-cmd="qzone"></a><a href="#" class="bds_tsina" data-cmd="tsina"></a><a href="#" class="bds_tqq" data-cmd="tqq"></a><a href="#" class="bds_renren" data-cmd="renren"></a><a href="#" class="bds_weixin" data-cmd="weixin"></a></div>
+	<script>window._bd_share_config={"common":{"bdSnsKey":{},"bdText":"","bdMini":"2","bdPic":"","bdStyle":"0","bdSize":"16"},"share":{},"image":{"viewList":["qzone","tsina","tqq","renren","weixin"],"viewText":"分享到：","viewSize":"16"},"selectShare":{"bdContainerClass":null,"bdSelectMiniList":["qzone","tsina","tqq","renren","weixin"]}};with(document)0[(getElementsByTagName('head')[0]||body).appendChild(createElement('script')).src='http://bdimg.share.baidu.com/static/api/js/share.js?v=89860593.js?cdnversion='+~(-new Date()/36e5)];</script>		
+	</article>
+	
+<nav class="article-nav clearfix">
+ 
+ <div class="prev" >
+ <a href="/2016/04/21/baidu-login-with-httpclient/" title="使用HttpClient模拟登录百度账号">
+  <strong>PREVIOUS:</strong><br/>
+  <span>
+  使用HttpClient模拟登录百度账号</span>
+</a>
+</div>
+
+
+<div class="next">
+<a href="/2015/04/27/model-aggregation/"  title="模型组合基本方法简介">
+ <strong>NEXT:</strong><br/> 
+ <span>模型组合基本方法简介
+</span>
+</a>
+</div>
+
+</nav>
+
+	
+<section class="comment">
+	<!-- 多说评论框 start -->
+	<div class="ds-thread" data-thread-key="post-learning-from-imbalanced-data" data-title="不平衡数据下的机器学习方法简介" data-url="http://baogege.info/2015/11/16/learning-from-imbalanced-data/"></div>
+<!-- 多说评论框 end -->
+<!-- 多说公共JS代码 start (一个网页只需插入一次) -->
+<script type="text/javascript">
+var duoshuoQuery = {short_name:"baogege"};
+	(function() {
+		var ds = document.createElement('script');
+		ds.type = 'text/javascript';ds.async = true;
+		ds.src = (document.location.protocol == 'https:' ? 'https:' : 'http:') + '//static.duoshuo.com/embed.js';
+		ds.charset = 'UTF-8';
+		(document.getElementsByTagName('head')[0] 
+		 || document.getElementsByTagName('body')[0]).appendChild(ds);
+	})();
+	</script>
+<!-- 多说公共JS代码 end -->
+
+</section>
+
+</div>  
+      <div class="openaside"><a class="navbutton" href="#" title="显示侧边栏"></a></div>
+
+  <div id="toc" class="toc-aside">
+  <strong class="toc-title">文章目录</strong>
+  <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#引言"><span class="toc-number">1.</span> <span class="toc-text">引言</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#问题定义"><span class="toc-number">1.1.</span> <span class="toc-text">问题定义</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#为什么不平衡学习"><span class="toc-number">1.2.</span> <span class="toc-text">为什么不平衡学习</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#不平衡学习的方法"><span class="toc-number">2.</span> <span class="toc-text">不平衡学习的方法</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#采样"><span class="toc-number">2.1.</span> <span class="toc-text">采样</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#随机采样"><span class="toc-number">2.1.1.</span> <span class="toc-text">随机采样</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#SMOTE算法"><span class="toc-number">2.1.2.</span> <span class="toc-text">SMOTE算法</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Informed_Undersampling"><span class="toc-number">2.1.3.</span> <span class="toc-text">Informed Undersampling</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#代价敏感学习"><span class="toc-number">2.2.</span> <span class="toc-text">代价敏感学习</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#代价矩阵"><span class="toc-number">2.2.1.</span> <span class="toc-text">代价矩阵</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#代价敏感学习方法"><span class="toc-number">2.2.2.</span> <span class="toc-text">代价敏感学习方法</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#AdaCost算法"><span class="toc-number">2.2.3.</span> <span class="toc-text">AdaCost算法</span></a></li></ol></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#不平衡学习的评价方法"><span class="toc-number">3.</span> <span class="toc-text">不平衡学习的评价方法</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#正确率和F值"><span class="toc-number">3.1.</span> <span class="toc-text">正确率和F值</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#G-Mean"><span class="toc-number">3.2.</span> <span class="toc-text">G-Mean</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#ROC曲线和AUC"><span class="toc-number">3.3.</span> <span class="toc-text">ROC曲线和AUC</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#总结"><span class="toc-number">4.</span> <span class="toc-text">总结</span></a></li></ol>
+  </div>
+
+<div id="asidepart">
+<div class="closeaside"><a class="closebutton" href="#" title="隐藏侧边栏"></a></div>
+<aside class="clearfix">
+
+  
+<div class="categorieslist">
+	<p class="asidetitle">分类</p>
+		<ul>
+		
+			<li><a href="/categories/IT杂谈/" title="IT杂谈">IT杂谈<sup>1</sup></a></li>
+		
+			<li><a href="/categories/default/" title="default">default<sup>1</sup></a></li>
+		
+			<li><a href="/categories/个人随笔/" title="个人随笔">个人随笔<sup>2</sup></a></li>
+		
+			<li><a href="/categories/推荐系统/" title="推荐系统">推荐系统<sup>2</sup></a></li>
+		
+			<li><a href="/categories/机器学习/" title="机器学习">机器学习<sup>3</sup></a></li>
+		
+			<li><a href="/categories/编程技术/" title="编程技术">编程技术<sup>1</sup></a></li>
+		
+		</ul>
+</div>
+
+
+  
+<div class="tagslist">
+	<p class="asidetitle">标签</p>
+		<ul class="clearfix">
+		
+			<li><a href="/tags/Bagging/" title="Bagging">Bagging<sup>1</sup></a></li>
+		
+			<li><a href="/tags/Boosting/" title="Boosting">Boosting<sup>1</sup></a></li>
+		
+			<li><a href="/tags/Coursera/" title="Coursera">Coursera<sup>1</sup></a></li>
+		
+			<li><a href="/tags/Java/" title="Java">Java<sup>1</sup></a></li>
+		
+			<li><a href="/tags/Netflix/" title="Netflix">Netflix<sup>1</sup></a></li>
+		
+			<li><a href="/tags/gitcafe/" title="gitcafe">gitcafe<sup>1</sup></a></li>
+		
+			<li><a href="/tags/hexo/" title="hexo">hexo<sup>2</sup></a></li>
+		
+			<li><a href="/tags/个人博客/" title="个人博客">个人博客<sup>1</sup></a></li>
+		
+			<li><a href="/tags/公开课/" title="公开课">公开课<sup>1</sup></a></li>
+		
+			<li><a href="/tags/决策树/" title="决策树">决策树<sup>1</sup></a></li>
+		
+			<li><a href="/tags/协同过滤/" title="协同过滤">协同过滤<sup>1</sup></a></li>
+		
+			<li><a href="/tags/排序学习/" title="排序学习">排序学习<sup>1</sup></a></li>
+		
+			<li><a href="/tags/推荐系统/" title="推荐系统">推荐系统<sup>3</sup></a></li>
+		
+			<li><a href="/tags/机器学习/" title="机器学习">机器学习<sup>4</sup></a></li>
+		
+			<li><a href="/tags/模型组合/" title="模型组合">模型组合<sup>1</sup></a></li>
+		
+			<li><a href="/tags/矩阵分解/" title="矩阵分解">矩阵分解<sup>1</sup></a></li>
+		
+			<li><a href="/tags/网络爬虫/" title="网络爬虫">网络爬虫<sup>1</sup></a></li>
+		
+			<li><a href="/tags/随机森林/" title="随机森林">随机森林<sup>1</sup></a></li>
+		
+			<li><a href="/tags/隐语义模型/" title="隐语义模型">隐语义模型<sup>1</sup></a></li>
+		
+		</ul>
+</div>
+
+
+  
+<div class="weibo">
+<p class="asidetitle">新浪微博</p>
+<ul>
+<li>
+<iframe width="100%" height="550" class="share_self"  frameborder="0" scrolling="no" src="http://widget.weibo.com/weiboshow/index.php?language=&width=0&height=550&fansRow=1&ptype=1&speed=0&skin=1&isTitle=1&noborder=1&isWeibo=1&isFans=0&uid=1849026987&verifier=d18450f9&dpc=1"></iframe>
+</li>
+</ul>
+
+</div>
+
+  <div class="linkslist">
+  <p class="asidetitle">友情链接</p>
+    <ul>
+	<li><a href="http://smartbob.info/" target="_blank" title="smartbob">Smartbob's Blog</a></li>
+	<li><a href="http://leilei.me/" target="_blank" title="leilei">Leilei's Blog</a></li>
+	<li><a href="http://zipperary.com/" target="_blank" title="zipperary">Zipperary's Blog</a></li>
+    <li><a href="http://baogege.info" target="_blank" title="练绪宝">Baogege's Blog</a></li>
+    </ul>
+</div>
+
+  <div class="rsspart">
+	<a href="/atom.xml" target="_blank" title="rss">RSS 订阅</a>
+</div>
+
+</aside>
+</div>
+    </div>
+    <footer><div id="footer" >
+	
+	<div class="line">
+		<span></span>
+		<div class="author"></div>
+	</div>
+	
+	
+	<div class="social-font" class="clearfix">
+		
+		
+		
+		
+	</div>
+		<p class="copyright">Powered by <a href="http://hexo.io" target="_blank" title="hexo">hexo</a> and Theme by <a href="https://github.com/wizicer/iceman" target="_blank" title="Iceman">Iceman</a> © 2016 
+		
+		<a href="http://baogege.info" target="_blank" title="Xubao">Xubao</a>
+		
+		</p>
+</div>
+</footer>
+    <script src="/js/jquery-2.1.0.min.js"></script>
+<script type="text/javascript">
+$(document).ready(function(){ 
+  $('.navbar').click(function(){
+    $('header nav').toggleClass('shownav');
+  });
+  var myWidth = 0;
+  function getSize(){
+    if( typeof( window.innerWidth ) == 'number' ) {
+      myWidth = window.innerWidth;
+    } else if( document.documentElement && document.documentElement.clientWidth) {
+      myWidth = document.documentElement.clientWidth;
+    };
+  };
+  var m = $('#main'),
+      a = $('#asidepart'),
+      c = $('.closeaside'),
+      o = $('.openaside');
+  $(window).resize(function(){
+    getSize(); 
+    if (myWidth >= 1024) {
+      $('header nav').removeClass('shownav');
+    }else
+    {
+      m.removeClass('moveMain');
+      a.css('display', 'block').removeClass('fadeOut');
+      o.css('display', 'none');
+      
+      $('#toc.toc-aside').css('display', 'none');
+        
+    }
+  });
+  c.click(function(){
+    a.addClass('fadeOut').css('display', 'none');
+    o.css('display', 'block').addClass('fadeIn');
+    m.addClass('moveMain');
+  });
+  o.click(function(){
+    o.css('display', 'none').removeClass('beforeFadeIn');
+    a.css('display', 'block').removeClass('fadeOut').addClass('fadeIn');      
+    m.removeClass('moveMain');
+  });
+  $(window).scroll(function(){
+    o.css("top",Math.max(80,260-$(this).scrollTop()));
+  });
+});
+</script>
+
+<script type="text/javascript">
+$(document).ready(function(){ 
+  var ai = $('.article-content>iframe'),
+      ae = $('.article-content>embed'),
+      t  = $('#toc'),
+      h  = $('article h2')
+      ah = $('article h2'),
+      ta = $('#toc.toc-aside'),
+      o  = $('.openaside'),
+      c  = $('.closeaside');
+  if(ai.length>0){
+    ai.wrap('<div class="video-container" />');
+  };
+  if(ae.length>0){
+   ae.wrap('<div class="video-container" />');
+  };
+  if(ah.length==0){
+    t.css('display','none');
+  }else{
+    c.click(function(){
+      ta.css('display', 'block').addClass('fadeIn');
+    });
+    o.click(function(){
+      ta.css('display', 'none');
+    });
+    $(window).scroll(function(){
+      ta.css("top",Math.max(140,320-$(this).scrollTop()));
+    });
+  };
+});
+</script>
+
+
+<script type="text/javascript">
+$(document).ready(function(){ 
+  var $this = $('.share'),
+      url = $this.attr('data-url'),
+      encodedUrl = encodeURIComponent(url),
+      title = $this.attr('data-title'),
+      tsina = $this.attr('data-tsina');
+  var html = [
+  '<a href="#" class="overlay" id="qrcode"></a>',
+  '<div class="qrcode clearfix"><span>扫描二维码分享到微信朋友圈</span><a class="qrclose" href="#share"></a><strong>Loading...Please wait</strong><img id="qrcode-pic" data-src="http://s.jiathis.com/qrcode.php?url=' + encodedUrl + '"/></div>',
+  '<a href="#textlogo" class="article-back-to-top" title="Top"></a>',
+  '<a href="https://www.facebook.com/sharer.php?u=' + encodedUrl + '" class="article-share-facebook" target="_blank" title="Facebook"></a>',
+  '<a href="#qrcode" class="article-share-qrcode" title="QRcode"></a>',
+  '<a href="https://twitter.com/intent/tweet?url=' + encodedUrl + '" class="article-share-twitter" target="_blank" title="Twitter"></a>',
+  '<a href="http://service.weibo.com/share/share.php?title='+title+'&url='+encodedUrl +'&ralateUid='+ tsina +'&searchPic=true&style=number' +'" class="article-share-weibo" target="_blank" title="Weibo"></a>',
+  '<span title="Share to"></span>'
+  ].join('');
+  $this.append(html);
+  $('.article-share-qrcode').click(function(){
+    var imgSrc = $('#qrcode-pic').attr('data-src');
+    $('#qrcode-pic').attr('src', imgSrc);
+    $('#qrcode-pic').load(function(){
+        $('.qrcode strong').text(' ');
+    });
+  });
+});     
+</script>
+
+
+<script type="text/javascript">
+  var duoshuoQuery = {short_name:"Baogege"};
+  (function() {
+    var ds = document.createElement('script');
+    ds.type = 'text/javascript';ds.async = true;
+    ds.src = '//static.duoshuo.com/embed.js';
+    ds.charset = 'UTF-8';
+    (document.getElementsByTagName('head')[0] 
+    || document.getElementsByTagName('body')[0]).appendChild(ds);
+  })();
+</script> 
+
+
+
+
+
+
+
+
+
+<script type="text/x-mathjax-config"> 
+MathJax.Hub.Config({ 
+  tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']]} 
+}); 
+</script>
+<script type="text/javascript"
+   src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+</script>
+
+<script type="text/javascript">
+var _bdhmProtocol = (("https:" == document.location.protocol) ? " https://" : " http://");
+document.write(unescape("%3Cscript src='" + _bdhmProtocol + "hm.baidu.com/h.js%3Fa094902cfc57b8fb958cad00066e4dfc' type='text/javascript'%3E%3C/script%3E"));
+</script>
+
+  </body>
+</html>
+

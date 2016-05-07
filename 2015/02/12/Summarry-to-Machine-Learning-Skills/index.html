@@ -1,0 +1,460 @@
+
+ <!DOCTYPE HTML>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  
+    <title>Coursera公开课《机器学习基石&amp;技术》课程的感触 | Xubao&#39;s blog</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=3, minimum-scale=1">
+    
+    <meta name="author" content="Xubao">
+    
+    <meta name="description" content="背景
+
+最近在修台湾大学林轩田老师在Coursera上的机器学习系列课程《机器学习基石》和《机器学习技术》，前者是后者的先行课程，是基础，后者是前者的升级与补充。一直都有一个想法，就是完成一系列博客介绍自己对于机器学习领域各个模型的理解，一来是对自己学习成果的一个总结，二来也可以方便其它对机器学习领">
+    
+    
+    
+    
+    <link rel="alternate" href="/atom.xml" title="Xubao&#39;s blog" type="application/atom+xml">
+    
+    
+    <link rel="icon" href="/img/favicon.ico">
+    
+    
+    <link rel="apple-touch-icon" href="/img/pacman.jpg">
+    <link rel="apple-touch-icon-precomposed" href="/img/pacman.jpg">
+    
+    <link rel="stylesheet" href="/css/style.css" type="text/css">
+
+</head>
+
+  <body>
+    <header>
+      <div>
+		
+			<div id="imglogo">
+				<a href="/"><img src="/img/logo.svg" alt="Xubao&#39;s blog" title="Xubao&#39;s blog"/></a>
+			</div>
+			
+			<div id="textlogo">
+				<h1 class="site-name"><a href="/" title="Xubao&#39;s blog">Xubao&#39;s blog</a></h1>
+				<h2 class="blog-motto">所谓的成功只有一个，就是按照自己的方式去度过人生</h2>
+			</div>
+			<div class="navbar"><a class="navbutton navmobile" href="#" title="菜单">
+			</a></div>
+			<nav class="animated">
+				<ul>
+					<ul>
+					 
+						<li><a href="/">首页</a></li>
+					
+						<li><a href="/archives">归档</a></li>
+					
+						<li><a href="/about">关于</a></li>
+					
+						<li><a href="/atom.xml">订阅</a></li>
+					
+					<li>
+					
+					<form class="search" action="//baidu.com/s" method="get" accept-charset="utf-8">
+						<label>Search</label>
+						<input type="text" id="search" name="wd" autocomplete="off" maxlength="20" placeholder="搜索" />
+                        <input name=tn type=hidden value="bds">
+                        <input name=cl type=hidden value="3">
+                        <input name=ct type=hidden value="2097152">
+						<input type="hidden" name="si" value="baogege.info">
+					</form>
+					
+					</li>
+					
+				</ul>
+			</nav>			
+</div>
+
+    </header>
+    <div id="container">
+      <div id="main" class="post" itemscope itemprop="blogPost">
+
+	<article itemprop="articleBody"> 
+		<header class="article-info clearfix">
+  <h1 itemprop="name">
+    
+      <a href="/2015/02/12/Summarry-to-Machine-Learning-Skills/" title="Coursera公开课《机器学习基石&amp;技术》课程的感触" itemprop="url">Coursera公开课《机器学习基石&amp;技术》课程的感触</a>
+  </h1>
+  <p class="article-author">By
+    
+      <a href="http://baogege.info" title="Xubao">Xubao</a>
+    </p>
+  <p class="article-time">
+    <time datetime="2015-02-12T15:42:31.000Z" itemprop="datePublished">2月 12 2015</time>
+    更新日期:<time datetime="2016-05-06T03:20:33.000Z" itemprop="dateModified">5月 6 2016</time>
+    
+  </p>
+</header>
+
+	<div class="article-content">
+		
+		
+		<div id="toc" class="toc-article">
+			<strong class="toc-title">文章目录</strong>
+		<ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#背景"><span class="toc-number">1.</span> <span class="toc-text">背景</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#课程特点"><span class="toc-number">2.</span> <span class="toc-text">课程特点</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#和Andrew_NG课程的对比"><span class="toc-number">3.</span> <span class="toc-text">和Andrew NG课程的对比</span></a></li></ol>
+		</div>
+		
+		<h1 id="背景">背景</h1>
+<hr>
+<p>最近在修台湾大学林轩田老师在Coursera上的机器学习系列课程<a href="https://www.coursera.org/course/ntumlone" target="_blank" rel="external">《机器学习基石》</a>和<a href="https://class.coursera.org/ntumltwo-001/lecture" target="_blank" rel="external">《机器学习技术》</a>，前者是后者的先行课程，是基础，后者是前者的升级与补充。一直都有一个想法，就是完成一系列博客介绍自己对于机器学习领域各个模型的理解，一来是对自己学习成果的一个总结，二来也可以方便其它对机器学习领域感兴趣的朋友更好地理解这些方法。好了，闲话少说，就以这篇文章作一个开端，下面简单介绍一下我修林轩田老师机器学习课程的一些感触。</p>
+<h1 id="课程特点">课程特点</h1>
+<hr>
+<p>MOOC这样一个在线学习平台的优越性自不用我唠叨，我只想说，32个赞，不能再少了。它实在是太方便了！对这门课程的总体感觉，三个字，“有点难”。说它难，一个很重要的原因是此课程的理论性和实践性都偏强，需要有一定的数学功底才能听懂，并且要完成课后习题都需要一定的公式推导。</p>
+<p>此课程最大的优势在于它的每一次作业都有大概8道题是编程题，它会提供数据集，我们需要按照它的方法和参数原模原样地实现了该模型才能做对，这种题目靠蒙是基本上不可能蒙对的，程序有任何的逻辑错误都做不到正确答案。所以如果我们把程序都正确实现了，那么对该模型的理解也肯定基本上不会有什么问题了。</p>
+<h1 id="和Andrew_NG课程的对比">和Andrew NG课程的对比</h1>
+<hr>
+<p>谈到机器学习公开课，大家肯定知道机器学习大牛，来自斯坦福大学的Andrew NG开的<a href="https://www.coursera.org/course/ml" target="_blank" rel="external">机器学习</a>课程，相信修过了那门课程的朋友都会感觉这门课还是比较简单的，不管是课程内容还是课后习题。这门课主要是讲方法，也就是说它只是告诉我们这个模型就是那样，但是它为什么那样却是不知道的。当然了，这不是在贬低这门课，这门课的质量还是蛮高的，因为谁也不可能在这么短的篇幅之内把机器学习各个模型的来龙去脉都讲清楚，作为一个初学者，修这门课的收获还是会挺大的。</p>
+<p>与此不同的是，台湾大学的机器学习课程则对各个模型从理论推导到算法流程都作了系统的讲解，看完了之后有种恍然大悟的感觉。此课程适合对机器学习有了一定的了解之后的朋友修。</p>
+  
+	</div>
+		<footer class="article-footer clearfix">
+
+  <div class="article-tags">
+  
+  <span></span> <a href="/tags/机器学习/">机器学习</a><a href="/tags/公开课/">公开课</a><a href="/tags/Coursera/">Coursera</a>
+  </div>
+
+
+<div class="article-categories">
+  <span></span>
+  <a class="article-category-link" href="/categories/个人随笔/">个人随笔</a>
+</div>
+
+
+
+<div class="article-share" id="share">
+
+  <div data-url="http://baogege.info/2015/02/12/Summarry-to-Machine-Learning-Skills/" data-title="Coursera公开课《机器学习基石&amp;技术》课程的感触 | Xubao&#39;s blog" data-tsina="1849026987" class="share clearfix">
+  </div>
+
+</div>
+</footer>
+	<div class="bdsharebuttonbox"><a href="#" class="bds_more" data-cmd="more"></a><a href="#" class="bds_qzone" data-cmd="qzone"></a><a href="#" class="bds_tsina" data-cmd="tsina"></a><a href="#" class="bds_tqq" data-cmd="tqq"></a><a href="#" class="bds_renren" data-cmd="renren"></a><a href="#" class="bds_weixin" data-cmd="weixin"></a></div>
+	<script>window._bd_share_config={"common":{"bdSnsKey":{},"bdText":"","bdMini":"2","bdPic":"","bdStyle":"0","bdSize":"16"},"share":{},"image":{"viewList":["qzone","tsina","tqq","renren","weixin"],"viewText":"分享到：","viewSize":"16"},"selectShare":{"bdContainerClass":null,"bdSelectMiniList":["qzone","tsina","tqq","renren","weixin"]}};with(document)0[(getElementsByTagName('head')[0]||body).appendChild(createElement('script')).src='http://bdimg.share.baidu.com/static/api/js/share.js?v=89860593.js?cdnversion='+~(-new Date()/36e5)];</script>		
+	</article>
+	
+<nav class="article-nav clearfix">
+ 
+ <div class="prev" >
+ <a href="/2015/02/13/API-for-My-RandomForest/" title="分享一个随机森林和决策树模型的实现代码">
+  <strong>PREVIOUS:</strong><br/>
+  <span>
+  分享一个随机森林和决策树模型的实现代码</span>
+</a>
+</div>
+
+
+<div class="next">
+<a href="/2014/10/19/introduction-to-netflix/"  title="Netflix公司的前世今生">
+ <strong>NEXT:</strong><br/> 
+ <span>Netflix公司的前世今生
+</span>
+</a>
+</div>
+
+</nav>
+
+	
+<section class="comment">
+	<!-- 多说评论框 start -->
+	<div class="ds-thread" data-thread-key="post-Summarry-to-Machine-Learning-Skills" data-title="Coursera公开课《机器学习基石&amp;技术》课程的感触" data-url="http://baogege.info/2015/02/12/Summarry-to-Machine-Learning-Skills/"></div>
+<!-- 多说评论框 end -->
+<!-- 多说公共JS代码 start (一个网页只需插入一次) -->
+<script type="text/javascript">
+var duoshuoQuery = {short_name:"baogege"};
+	(function() {
+		var ds = document.createElement('script');
+		ds.type = 'text/javascript';ds.async = true;
+		ds.src = (document.location.protocol == 'https:' ? 'https:' : 'http:') + '//static.duoshuo.com/embed.js';
+		ds.charset = 'UTF-8';
+		(document.getElementsByTagName('head')[0] 
+		 || document.getElementsByTagName('body')[0]).appendChild(ds);
+	})();
+	</script>
+<!-- 多说公共JS代码 end -->
+
+</section>
+
+</div>  
+      <div class="openaside"><a class="navbutton" href="#" title="显示侧边栏"></a></div>
+
+  <div id="toc" class="toc-aside">
+  <strong class="toc-title">文章目录</strong>
+  <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#背景"><span class="toc-number">1.</span> <span class="toc-text">背景</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#课程特点"><span class="toc-number">2.</span> <span class="toc-text">课程特点</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#和Andrew_NG课程的对比"><span class="toc-number">3.</span> <span class="toc-text">和Andrew NG课程的对比</span></a></li></ol>
+  </div>
+
+<div id="asidepart">
+<div class="closeaside"><a class="closebutton" href="#" title="隐藏侧边栏"></a></div>
+<aside class="clearfix">
+
+  
+<div class="categorieslist">
+	<p class="asidetitle">分类</p>
+		<ul>
+		
+			<li><a href="/categories/IT杂谈/" title="IT杂谈">IT杂谈<sup>1</sup></a></li>
+		
+			<li><a href="/categories/default/" title="default">default<sup>1</sup></a></li>
+		
+			<li><a href="/categories/个人随笔/" title="个人随笔">个人随笔<sup>2</sup></a></li>
+		
+			<li><a href="/categories/推荐系统/" title="推荐系统">推荐系统<sup>2</sup></a></li>
+		
+			<li><a href="/categories/机器学习/" title="机器学习">机器学习<sup>3</sup></a></li>
+		
+			<li><a href="/categories/编程技术/" title="编程技术">编程技术<sup>1</sup></a></li>
+		
+		</ul>
+</div>
+
+
+  
+<div class="tagslist">
+	<p class="asidetitle">标签</p>
+		<ul class="clearfix">
+		
+			<li><a href="/tags/Bagging/" title="Bagging">Bagging<sup>1</sup></a></li>
+		
+			<li><a href="/tags/Boosting/" title="Boosting">Boosting<sup>1</sup></a></li>
+		
+			<li><a href="/tags/Coursera/" title="Coursera">Coursera<sup>1</sup></a></li>
+		
+			<li><a href="/tags/Java/" title="Java">Java<sup>1</sup></a></li>
+		
+			<li><a href="/tags/Netflix/" title="Netflix">Netflix<sup>1</sup></a></li>
+		
+			<li><a href="/tags/gitcafe/" title="gitcafe">gitcafe<sup>1</sup></a></li>
+		
+			<li><a href="/tags/hexo/" title="hexo">hexo<sup>2</sup></a></li>
+		
+			<li><a href="/tags/个人博客/" title="个人博客">个人博客<sup>1</sup></a></li>
+		
+			<li><a href="/tags/公开课/" title="公开课">公开课<sup>1</sup></a></li>
+		
+			<li><a href="/tags/决策树/" title="决策树">决策树<sup>1</sup></a></li>
+		
+			<li><a href="/tags/协同过滤/" title="协同过滤">协同过滤<sup>1</sup></a></li>
+		
+			<li><a href="/tags/排序学习/" title="排序学习">排序学习<sup>1</sup></a></li>
+		
+			<li><a href="/tags/推荐系统/" title="推荐系统">推荐系统<sup>3</sup></a></li>
+		
+			<li><a href="/tags/机器学习/" title="机器学习">机器学习<sup>4</sup></a></li>
+		
+			<li><a href="/tags/模型组合/" title="模型组合">模型组合<sup>1</sup></a></li>
+		
+			<li><a href="/tags/矩阵分解/" title="矩阵分解">矩阵分解<sup>1</sup></a></li>
+		
+			<li><a href="/tags/网络爬虫/" title="网络爬虫">网络爬虫<sup>1</sup></a></li>
+		
+			<li><a href="/tags/随机森林/" title="随机森林">随机森林<sup>1</sup></a></li>
+		
+			<li><a href="/tags/隐语义模型/" title="隐语义模型">隐语义模型<sup>1</sup></a></li>
+		
+		</ul>
+</div>
+
+
+  
+<div class="weibo">
+<p class="asidetitle">新浪微博</p>
+<ul>
+<li>
+<iframe width="100%" height="550" class="share_self"  frameborder="0" scrolling="no" src="http://widget.weibo.com/weiboshow/index.php?language=&width=0&height=550&fansRow=1&ptype=1&speed=0&skin=1&isTitle=1&noborder=1&isWeibo=1&isFans=0&uid=1849026987&verifier=d18450f9&dpc=1"></iframe>
+</li>
+</ul>
+
+</div>
+
+  <div class="linkslist">
+  <p class="asidetitle">友情链接</p>
+    <ul>
+	<li><a href="http://smartbob.info/" target="_blank" title="smartbob">Smartbob's Blog</a></li>
+	<li><a href="http://leilei.me/" target="_blank" title="leilei">Leilei's Blog</a></li>
+	<li><a href="http://zipperary.com/" target="_blank" title="zipperary">Zipperary's Blog</a></li>
+    <li><a href="http://baogege.info" target="_blank" title="练绪宝">Baogege's Blog</a></li>
+    </ul>
+</div>
+
+  <div class="rsspart">
+	<a href="/atom.xml" target="_blank" title="rss">RSS 订阅</a>
+</div>
+
+</aside>
+</div>
+    </div>
+    <footer><div id="footer" >
+	
+	<div class="line">
+		<span></span>
+		<div class="author"></div>
+	</div>
+	
+	
+	<div class="social-font" class="clearfix">
+		
+		
+		
+		
+	</div>
+		<p class="copyright">Powered by <a href="http://hexo.io" target="_blank" title="hexo">hexo</a> and Theme by <a href="https://github.com/wizicer/iceman" target="_blank" title="Iceman">Iceman</a> © 2016 
+		
+		<a href="http://baogege.info" target="_blank" title="Xubao">Xubao</a>
+		
+		</p>
+</div>
+</footer>
+    <script src="/js/jquery-2.1.0.min.js"></script>
+<script type="text/javascript">
+$(document).ready(function(){ 
+  $('.navbar').click(function(){
+    $('header nav').toggleClass('shownav');
+  });
+  var myWidth = 0;
+  function getSize(){
+    if( typeof( window.innerWidth ) == 'number' ) {
+      myWidth = window.innerWidth;
+    } else if( document.documentElement && document.documentElement.clientWidth) {
+      myWidth = document.documentElement.clientWidth;
+    };
+  };
+  var m = $('#main'),
+      a = $('#asidepart'),
+      c = $('.closeaside'),
+      o = $('.openaside');
+  $(window).resize(function(){
+    getSize(); 
+    if (myWidth >= 1024) {
+      $('header nav').removeClass('shownav');
+    }else
+    {
+      m.removeClass('moveMain');
+      a.css('display', 'block').removeClass('fadeOut');
+      o.css('display', 'none');
+      
+      $('#toc.toc-aside').css('display', 'none');
+        
+    }
+  });
+  c.click(function(){
+    a.addClass('fadeOut').css('display', 'none');
+    o.css('display', 'block').addClass('fadeIn');
+    m.addClass('moveMain');
+  });
+  o.click(function(){
+    o.css('display', 'none').removeClass('beforeFadeIn');
+    a.css('display', 'block').removeClass('fadeOut').addClass('fadeIn');      
+    m.removeClass('moveMain');
+  });
+  $(window).scroll(function(){
+    o.css("top",Math.max(80,260-$(this).scrollTop()));
+  });
+});
+</script>
+
+<script type="text/javascript">
+$(document).ready(function(){ 
+  var ai = $('.article-content>iframe'),
+      ae = $('.article-content>embed'),
+      t  = $('#toc'),
+      h  = $('article h2')
+      ah = $('article h2'),
+      ta = $('#toc.toc-aside'),
+      o  = $('.openaside'),
+      c  = $('.closeaside');
+  if(ai.length>0){
+    ai.wrap('<div class="video-container" />');
+  };
+  if(ae.length>0){
+   ae.wrap('<div class="video-container" />');
+  };
+  if(ah.length==0){
+    t.css('display','none');
+  }else{
+    c.click(function(){
+      ta.css('display', 'block').addClass('fadeIn');
+    });
+    o.click(function(){
+      ta.css('display', 'none');
+    });
+    $(window).scroll(function(){
+      ta.css("top",Math.max(140,320-$(this).scrollTop()));
+    });
+  };
+});
+</script>
+
+
+<script type="text/javascript">
+$(document).ready(function(){ 
+  var $this = $('.share'),
+      url = $this.attr('data-url'),
+      encodedUrl = encodeURIComponent(url),
+      title = $this.attr('data-title'),
+      tsina = $this.attr('data-tsina');
+  var html = [
+  '<a href="#" class="overlay" id="qrcode"></a>',
+  '<div class="qrcode clearfix"><span>扫描二维码分享到微信朋友圈</span><a class="qrclose" href="#share"></a><strong>Loading...Please wait</strong><img id="qrcode-pic" data-src="http://s.jiathis.com/qrcode.php?url=' + encodedUrl + '"/></div>',
+  '<a href="#textlogo" class="article-back-to-top" title="Top"></a>',
+  '<a href="https://www.facebook.com/sharer.php?u=' + encodedUrl + '" class="article-share-facebook" target="_blank" title="Facebook"></a>',
+  '<a href="#qrcode" class="article-share-qrcode" title="QRcode"></a>',
+  '<a href="https://twitter.com/intent/tweet?url=' + encodedUrl + '" class="article-share-twitter" target="_blank" title="Twitter"></a>',
+  '<a href="http://service.weibo.com/share/share.php?title='+title+'&url='+encodedUrl +'&ralateUid='+ tsina +'&searchPic=true&style=number' +'" class="article-share-weibo" target="_blank" title="Weibo"></a>',
+  '<span title="Share to"></span>'
+  ].join('');
+  $this.append(html);
+  $('.article-share-qrcode').click(function(){
+    var imgSrc = $('#qrcode-pic').attr('data-src');
+    $('#qrcode-pic').attr('src', imgSrc);
+    $('#qrcode-pic').load(function(){
+        $('.qrcode strong').text(' ');
+    });
+  });
+});     
+</script>
+
+
+<script type="text/javascript">
+  var duoshuoQuery = {short_name:"Baogege"};
+  (function() {
+    var ds = document.createElement('script');
+    ds.type = 'text/javascript';ds.async = true;
+    ds.src = '//static.duoshuo.com/embed.js';
+    ds.charset = 'UTF-8';
+    (document.getElementsByTagName('head')[0] 
+    || document.getElementsByTagName('body')[0]).appendChild(ds);
+  })();
+</script> 
+
+
+
+
+
+
+
+
+
+<script type="text/x-mathjax-config"> 
+MathJax.Hub.Config({ 
+  tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']]} 
+}); 
+</script>
+<script type="text/javascript"
+   src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+</script>
+
+<script type="text/javascript">
+var _bdhmProtocol = (("https:" == document.location.protocol) ? " https://" : " http://");
+document.write(unescape("%3Cscript src='" + _bdhmProtocol + "hm.baidu.com/h.js%3Fa094902cfc57b8fb958cad00066e4dfc' type='text/javascript'%3E%3C/script%3E"));
+</script>
+
+  </body>
+</html>
+

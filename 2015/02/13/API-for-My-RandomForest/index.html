@@ -1,0 +1,498 @@
+
+ <!DOCTYPE HTML>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  
+    <title>分享一个随机森林和决策树模型的实现代码 | Xubao&#39;s blog</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=3, minimum-scale=1">
+    
+    <meta name="author" content="Xubao">
+    
+    <meta name="description" content="写文章之前总是想交待清楚这篇文章的产生背景，如果把这一章改成“引言”,总感觉太单调，并且有点写学术论文的感觉，好吧，就这样吧，改个字体说明一下写作背景。最近在修台湾大学林轩田老师在Coursera上的公开课《机器学习技术》课程，讲到“Blending and Baging”一章，这一章免不了介绍决策">
+    
+    
+    
+    
+    <link rel="alternate" href="/atom.xml" title="Xubao&#39;s blog" type="application/atom+xml">
+    
+    
+    <link rel="icon" href="/img/favicon.ico">
+    
+    
+    <link rel="apple-touch-icon" href="/img/pacman.jpg">
+    <link rel="apple-touch-icon-precomposed" href="/img/pacman.jpg">
+    
+    <link rel="stylesheet" href="/css/style.css" type="text/css">
+
+</head>
+
+  <body>
+    <header>
+      <div>
+		
+			<div id="imglogo">
+				<a href="/"><img src="/img/logo.svg" alt="Xubao&#39;s blog" title="Xubao&#39;s blog"/></a>
+			</div>
+			
+			<div id="textlogo">
+				<h1 class="site-name"><a href="/" title="Xubao&#39;s blog">Xubao&#39;s blog</a></h1>
+				<h2 class="blog-motto">所谓的成功只有一个，就是按照自己的方式去度过人生</h2>
+			</div>
+			<div class="navbar"><a class="navbutton navmobile" href="#" title="菜单">
+			</a></div>
+			<nav class="animated">
+				<ul>
+					<ul>
+					 
+						<li><a href="/">首页</a></li>
+					
+						<li><a href="/archives">归档</a></li>
+					
+						<li><a href="/about">关于</a></li>
+					
+						<li><a href="/atom.xml">订阅</a></li>
+					
+					<li>
+					
+					<form class="search" action="//baidu.com/s" method="get" accept-charset="utf-8">
+						<label>Search</label>
+						<input type="text" id="search" name="wd" autocomplete="off" maxlength="20" placeholder="搜索" />
+                        <input name=tn type=hidden value="bds">
+                        <input name=cl type=hidden value="3">
+                        <input name=ct type=hidden value="2097152">
+						<input type="hidden" name="si" value="baogege.info">
+					</form>
+					
+					</li>
+					
+				</ul>
+			</nav>			
+</div>
+
+    </header>
+    <div id="container">
+      <div id="main" class="post" itemscope itemprop="blogPost">
+
+	<article itemprop="articleBody"> 
+		<header class="article-info clearfix">
+  <h1 itemprop="name">
+    
+      <a href="/2015/02/13/API-for-My-RandomForest/" title="分享一个随机森林和决策树模型的实现代码" itemprop="url">分享一个随机森林和决策树模型的实现代码</a>
+  </h1>
+  <p class="article-author">By
+    
+      <a href="http://baogege.info" title="Xubao">Xubao</a>
+    </p>
+  <p class="article-time">
+    <time datetime="2015-02-13T15:07:42.000Z" itemprop="datePublished">2月 13 2015</time>
+    更新日期:<time datetime="2016-05-06T03:15:22.000Z" itemprop="dateModified">5月 6 2016</time>
+    
+  </p>
+</header>
+
+	<div class="article-content">
+		
+		
+		<div id="toc" class="toc-article">
+			<strong class="toc-title">文章目录</strong>
+		<ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#决策树与随机森林"><span class="toc-number">1.</span> <span class="toc-text">决策树与随机森林</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#决策树"><span class="toc-number">1.1.</span> <span class="toc-text">决策树</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#混合方法"><span class="toc-number">1.2.</span> <span class="toc-text">混合方法</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#随机森林"><span class="toc-number">1.3.</span> <span class="toc-text">随机森林</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#实现方法"><span class="toc-number">2.</span> <span class="toc-text">实现方法</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#调用方法"><span class="toc-number">3.</span> <span class="toc-text">调用方法</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#注意事项"><span class="toc-number">3.1.</span> <span class="toc-text">注意事项</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#数据格式"><span class="toc-number">3.2.</span> <span class="toc-text">数据格式</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#CART决策树的调用方法"><span class="toc-number">3.3.</span> <span class="toc-text">CART决策树的调用方法</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#随机森林的调用方法"><span class="toc-number">3.4.</span> <span class="toc-text">随机森林的调用方法</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#后记"><span class="toc-number">4.</span> <span class="toc-text">后记</span></a></li></ol>
+		</div>
+		
+		<blockquote>
+<p>写文章之前总是想交待清楚这篇文章的产生背景，如果把这一章改成“引言”,总感觉太单调，并且有点写学术论文的感觉，好吧，就这样吧，改个字体说明一下写作背景。最近在修台湾大学林轩田老师在Coursera上的公开课《机器学习技术》课程，讲到“Blending and Baging”一章，这一章免不了介绍决策树和随机森林，刚好课后作业需要用随机森林和决策树算法，一开始想找找开源的工具包，但是很难发现符合我这个任务的工具包。求人不如求己，受此任务驱动，自己用java实现了一个简单的决策树模型和随机森林模型，在此分享给大家，希望对大家有用。</p>
+</blockquote>
+<h1 id="决策树与随机森林">决策树与随机森林</h1>
+<hr>
+<h2 id="决策树">决策树</h2>
+<p>相信了解机器学习的朋友对决策树模型肯定不会陌生，《统计学习方法》一书里面也是对决策树这一方法作了详尽的描述，可以说决策树是一种非常接近人类思维习惯，可解释性非常强的模型，它可以看作是一系列if-then规则的集合，但是它也有一个很致命的弱点，就是非常容易过拟合。经典的决策树构建方法有ID3算法、C4.5算法、CART算法，前两个方法主要用来解决分类问题，区别在于前者用信息增益作为数据纯度衡量指标，而后者采用的是信息增益比，且后者对树进行了剪枝；CART算法则可以解决回归问题。具体细节本文就不展开说了。</p>
+<h2 id="混合方法">混合方法</h2>
+<p>当我们有了多个不同的模型时，很容易产生一些想法，即如何把这些模型混合起来并且使混合模型的效果要优于单个模型。对于分类问题，最简单直观地有两种想法，第一种思路是让多个模型进行投票，得票多的类别即为最终的分类结果，这也就是现实生活中的民主法则；第二种思路是对各个模型进行加权，效果好的模型给他更大的权重，和现实生活中一样，权威人士和领导的话语权永远是比普通人更大的。第一种思路称为Baging，第二种思路就是非常有名的Adaboost方法，当然了如果深究下去其实还有第三种思路，即符合某种条件的时候用某一个模型，这其实就是决策树的基本思想。</p>
+<h2 id="随机森林">随机森林</h2>
+<p>随机森林(Random Forest)可以说是Baging和决策树的完美结合，这其实就是“三个臭皮匠，顶个诸葛亮”、“众人拾柴火焰高”的典型例子了。森林两字我们很容易理解，树多了就成了森林，也就是告诉我们，随机森林模型需要很多决策树。那么，“随机”二字是如何体现的呢？其实“随机”体现在随机森林模型的方方面面，首先是其数据的随机，采用有放回随机抽样保证每次模型训练的数据都是不一样的；其次是特征的随机性，每次决策树的训练都随机抽取一些特征，这样保证了每次训练都是用的不一样的特征空间。随机森林通过其随机性等机制有效地弥补了决策树容易过拟合的缺陷。你一棵决策树容易犯错，那么我有一个森林的树去投票做决定这样犯错的可能性总会低不少吧？</p>
+<h1 id="实现方法">实现方法</h1>
+<hr>
+<p>好了，做了这么多作铺垫，先不卖关子了，代码可以在我的个人gitcafe<a href="https://gitcafe.com/baogege" target="_blank" rel="external">主页</a>上<a href="https://gitcafe.com/baogege/RandomForest/tree/master" target="_blank" rel="external">下载</a>，此代码实现了简单CART(Classify and Regression Tree)算法的决策树分类算法，数据不纯度衡量指标选择的是基尼指数；基于此CART决策树实现了简单的随机森林模型，此随机森林模型目前只实现了数据的随机性，特征的随机性功能有待完善。具体使用方法可参照如下说明。</p>
+<h1 id="调用方法">调用方法</h1>
+<hr>
+<h2 id="注意事项">注意事项</h2>
+<p>这里引用了一个矩阵运算的工具包ujmp，所以大家把代码下载了别忘了添加该引用，这个jar包放在了我的项目目录下的lib子目录下。为方便大家使用本人封装了几个基本方法留作外部调用的接口，感兴趣的朋友可查看内部代码并根据自己的需要作出更改。</p>
+<h2 id="数据格式">数据格式</h2>
+<p>首先需要把数据处理成固定的格式，这里面我们只需要处理成最简单的格式，即每行代表一个样本，行中的特征用空格分隔，最后一列为该样本的类别标签。例如只有两维特征的数据格式如下所示</p>
+<blockquote>
+<p>feature1 feature2 +1</p>
+<p>feature1 feature2 -1</p>
+</blockquote>
+<h2 id="CART决策树的调用方法">CART决策树的调用方法</h2>
+<p>调用决策树需要加载数据、建树、评价结果，其代码如下所示。</p>
+<pre><code><span class="comment">//CART完全决策树调用示例</span>
+DecisionTree dt <span class="subst">=</span> <span class="literal">new</span> DecisionTree();
+<span class="built_in">String</span> trainFile <span class="subst">=</span> <span class="string">"./data/hw3_train.dat"</span>;
+<span class="built_in">String</span> testFile <span class="subst">=</span> <span class="string">"./data/hw3_test.dat"</span>;
+<span class="built_in">List</span><span class="subst">&lt;</span>DataItem<span class="subst">&gt;</span> dataList <span class="subst">=</span> Utility<span class="built_in">.</span>loadData(trainFile);
+<span class="built_in">List</span><span class="subst">&lt;</span>DataItem<span class="subst">&gt;</span> testList <span class="subst">=</span> Utility<span class="built_in">.</span>loadData(testFile);
+<span class="comment">//根据已有数据创建CART决策树</span>
+dt<span class="built_in">.</span>buildFullCartTree(dataList);
+<span class="comment">//评价结果错误率</span>
+double err <span class="subst">=</span> dt<span class="built_in">.</span>evaluate(testList);
+System<span class="built_in">.</span>out<span class="built_in">.</span>println(<span class="built_in">String</span><span class="built_in">.</span>format(<span class="string">"ErrorRate: %f"</span>, err));
+</code></pre><h2 id="随机森林的调用方法">随机森林的调用方法</h2>
+<p>随机森林加载数据的方法同上，这里需要设置2个参数，分别是森林中树的数量和抽样比例，其具体调用方法如下所示。</p>
+<pre><code><span class="comment">//随机森林调用示例</span>
+RandomForest rf = <span class="keyword">new</span> RandomForest();
+<span class="comment">//设置参数，森林中树的个数和抽样比例</span>
+<span class="keyword">int</span> treeCount = <span class="number">300</span>;
+<span class="keyword">double</span> sampleRate = <span class="number">1.0</span>d;
+rf.buildFullCartForest(dataList, treeCount, sampleRate);
+<span class="comment">//评价结果错误率</span>
+err = rf.evaluate(testList);
+System.<span class="keyword">out</span>.println(String.format(<span class="string">"ErrorRate: %f"</span>, err));
+</code></pre><h1 id="后记">后记</h1>
+<hr>
+<p>写到这里，我的内心是有些遗憾的，因为在去年参加的阿里巴巴大数据竞赛中就可以应用决策树的扩展方法，而我却没有用到过，所以并没有取得太好的成绩，并且实验结果也证明了成绩好的队伍都是用这那种方法。那种方法其实就是决策树和混合方法第二种思路的完美结合，它有一个高大上的名字叫做梯度提升决策树(Gradient Boosted Decision Tree, GBDT)，这种方法在台湾大学公开课《机器学习技法》中有详细的讲解，感兴趣的朋友可以参照。<br>其实上述代码只是实现了的只是最为简单的决策树和随机森林版本，我是一个懒人，一个任务驱动的懒人，将来可能需要添加剪枝、ID3算法、C4.5算法、回归决策树等功能，但是需要一个任务驱使才能有编码的动力，这些作为后续扩展吧，当然了更希望“有缘人”能去完善它。<br>谨以此文纪念我第一次在公共平台上共享代码。</p>
+  
+	</div>
+		<footer class="article-footer clearfix">
+
+  <div class="article-tags">
+  
+  <span></span> <a href="/tags/机器学习/">机器学习</a><a href="/tags/随机森林/">随机森林</a><a href="/tags/决策树/">决策树</a>
+  </div>
+
+
+<div class="article-categories">
+  <span></span>
+  <a class="article-category-link" href="/categories/机器学习/">机器学习</a>
+</div>
+
+
+
+<div class="article-share" id="share">
+
+  <div data-url="http://baogege.info/2015/02/13/API-for-My-RandomForest/" data-title="分享一个随机森林和决策树模型的实现代码 | Xubao&#39;s blog" data-tsina="1849026987" class="share clearfix">
+  </div>
+
+</div>
+</footer>
+	<div class="bdsharebuttonbox"><a href="#" class="bds_more" data-cmd="more"></a><a href="#" class="bds_qzone" data-cmd="qzone"></a><a href="#" class="bds_tsina" data-cmd="tsina"></a><a href="#" class="bds_tqq" data-cmd="tqq"></a><a href="#" class="bds_renren" data-cmd="renren"></a><a href="#" class="bds_weixin" data-cmd="weixin"></a></div>
+	<script>window._bd_share_config={"common":{"bdSnsKey":{},"bdText":"","bdMini":"2","bdPic":"","bdStyle":"0","bdSize":"16"},"share":{},"image":{"viewList":["qzone","tsina","tqq","renren","weixin"],"viewText":"分享到：","viewSize":"16"},"selectShare":{"bdContainerClass":null,"bdSelectMiniList":["qzone","tsina","tqq","renren","weixin"]}};with(document)0[(getElementsByTagName('head')[0]||body).appendChild(createElement('script')).src='http://bdimg.share.baidu.com/static/api/js/share.js?v=89860593.js?cdnversion='+~(-new Date()/36e5)];</script>		
+	</article>
+	
+<nav class="article-nav clearfix">
+ 
+ <div class="prev" >
+ <a href="/2015/04/27/model-aggregation/" title="模型组合基本方法简介">
+  <strong>PREVIOUS:</strong><br/>
+  <span>
+  模型组合基本方法简介</span>
+</a>
+</div>
+
+
+<div class="next">
+<a href="/2015/02/12/Summarry-to-Machine-Learning-Skills/"  title="Coursera公开课《机器学习基石&amp;技术》课程的感触">
+ <strong>NEXT:</strong><br/> 
+ <span>Coursera公开课《机器学习基石&amp;技术》课程的感触
+</span>
+</a>
+</div>
+
+</nav>
+
+	
+<section class="comment">
+	<!-- 多说评论框 start -->
+	<div class="ds-thread" data-thread-key="post-API-for-My-RandomForest" data-title="分享一个随机森林和决策树模型的实现代码" data-url="http://baogege.info/2015/02/13/API-for-My-RandomForest/"></div>
+<!-- 多说评论框 end -->
+<!-- 多说公共JS代码 start (一个网页只需插入一次) -->
+<script type="text/javascript">
+var duoshuoQuery = {short_name:"baogege"};
+	(function() {
+		var ds = document.createElement('script');
+		ds.type = 'text/javascript';ds.async = true;
+		ds.src = (document.location.protocol == 'https:' ? 'https:' : 'http:') + '//static.duoshuo.com/embed.js';
+		ds.charset = 'UTF-8';
+		(document.getElementsByTagName('head')[0] 
+		 || document.getElementsByTagName('body')[0]).appendChild(ds);
+	})();
+	</script>
+<!-- 多说公共JS代码 end -->
+
+</section>
+
+</div>  
+      <div class="openaside"><a class="navbutton" href="#" title="显示侧边栏"></a></div>
+
+  <div id="toc" class="toc-aside">
+  <strong class="toc-title">文章目录</strong>
+  <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#决策树与随机森林"><span class="toc-number">1.</span> <span class="toc-text">决策树与随机森林</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#决策树"><span class="toc-number">1.1.</span> <span class="toc-text">决策树</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#混合方法"><span class="toc-number">1.2.</span> <span class="toc-text">混合方法</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#随机森林"><span class="toc-number">1.3.</span> <span class="toc-text">随机森林</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#实现方法"><span class="toc-number">2.</span> <span class="toc-text">实现方法</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#调用方法"><span class="toc-number">3.</span> <span class="toc-text">调用方法</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#注意事项"><span class="toc-number">3.1.</span> <span class="toc-text">注意事项</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#数据格式"><span class="toc-number">3.2.</span> <span class="toc-text">数据格式</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#CART决策树的调用方法"><span class="toc-number">3.3.</span> <span class="toc-text">CART决策树的调用方法</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#随机森林的调用方法"><span class="toc-number">3.4.</span> <span class="toc-text">随机森林的调用方法</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#后记"><span class="toc-number">4.</span> <span class="toc-text">后记</span></a></li></ol>
+  </div>
+
+<div id="asidepart">
+<div class="closeaside"><a class="closebutton" href="#" title="隐藏侧边栏"></a></div>
+<aside class="clearfix">
+
+  
+<div class="categorieslist">
+	<p class="asidetitle">分类</p>
+		<ul>
+		
+			<li><a href="/categories/IT杂谈/" title="IT杂谈">IT杂谈<sup>1</sup></a></li>
+		
+			<li><a href="/categories/default/" title="default">default<sup>1</sup></a></li>
+		
+			<li><a href="/categories/个人随笔/" title="个人随笔">个人随笔<sup>2</sup></a></li>
+		
+			<li><a href="/categories/推荐系统/" title="推荐系统">推荐系统<sup>2</sup></a></li>
+		
+			<li><a href="/categories/机器学习/" title="机器学习">机器学习<sup>3</sup></a></li>
+		
+			<li><a href="/categories/编程技术/" title="编程技术">编程技术<sup>1</sup></a></li>
+		
+		</ul>
+</div>
+
+
+  
+<div class="tagslist">
+	<p class="asidetitle">标签</p>
+		<ul class="clearfix">
+		
+			<li><a href="/tags/Bagging/" title="Bagging">Bagging<sup>1</sup></a></li>
+		
+			<li><a href="/tags/Boosting/" title="Boosting">Boosting<sup>1</sup></a></li>
+		
+			<li><a href="/tags/Coursera/" title="Coursera">Coursera<sup>1</sup></a></li>
+		
+			<li><a href="/tags/Java/" title="Java">Java<sup>1</sup></a></li>
+		
+			<li><a href="/tags/Netflix/" title="Netflix">Netflix<sup>1</sup></a></li>
+		
+			<li><a href="/tags/gitcafe/" title="gitcafe">gitcafe<sup>1</sup></a></li>
+		
+			<li><a href="/tags/hexo/" title="hexo">hexo<sup>2</sup></a></li>
+		
+			<li><a href="/tags/个人博客/" title="个人博客">个人博客<sup>1</sup></a></li>
+		
+			<li><a href="/tags/公开课/" title="公开课">公开课<sup>1</sup></a></li>
+		
+			<li><a href="/tags/决策树/" title="决策树">决策树<sup>1</sup></a></li>
+		
+			<li><a href="/tags/协同过滤/" title="协同过滤">协同过滤<sup>1</sup></a></li>
+		
+			<li><a href="/tags/排序学习/" title="排序学习">排序学习<sup>1</sup></a></li>
+		
+			<li><a href="/tags/推荐系统/" title="推荐系统">推荐系统<sup>3</sup></a></li>
+		
+			<li><a href="/tags/机器学习/" title="机器学习">机器学习<sup>4</sup></a></li>
+		
+			<li><a href="/tags/模型组合/" title="模型组合">模型组合<sup>1</sup></a></li>
+		
+			<li><a href="/tags/矩阵分解/" title="矩阵分解">矩阵分解<sup>1</sup></a></li>
+		
+			<li><a href="/tags/网络爬虫/" title="网络爬虫">网络爬虫<sup>1</sup></a></li>
+		
+			<li><a href="/tags/随机森林/" title="随机森林">随机森林<sup>1</sup></a></li>
+		
+			<li><a href="/tags/隐语义模型/" title="隐语义模型">隐语义模型<sup>1</sup></a></li>
+		
+		</ul>
+</div>
+
+
+  
+<div class="weibo">
+<p class="asidetitle">新浪微博</p>
+<ul>
+<li>
+<iframe width="100%" height="550" class="share_self"  frameborder="0" scrolling="no" src="http://widget.weibo.com/weiboshow/index.php?language=&width=0&height=550&fansRow=1&ptype=1&speed=0&skin=1&isTitle=1&noborder=1&isWeibo=1&isFans=0&uid=1849026987&verifier=d18450f9&dpc=1"></iframe>
+</li>
+</ul>
+
+</div>
+
+  <div class="linkslist">
+  <p class="asidetitle">友情链接</p>
+    <ul>
+	<li><a href="http://smartbob.info/" target="_blank" title="smartbob">Smartbob's Blog</a></li>
+	<li><a href="http://leilei.me/" target="_blank" title="leilei">Leilei's Blog</a></li>
+	<li><a href="http://zipperary.com/" target="_blank" title="zipperary">Zipperary's Blog</a></li>
+    <li><a href="http://baogege.info" target="_blank" title="练绪宝">Baogege's Blog</a></li>
+    </ul>
+</div>
+
+  <div class="rsspart">
+	<a href="/atom.xml" target="_blank" title="rss">RSS 订阅</a>
+</div>
+
+</aside>
+</div>
+    </div>
+    <footer><div id="footer" >
+	
+	<div class="line">
+		<span></span>
+		<div class="author"></div>
+	</div>
+	
+	
+	<div class="social-font" class="clearfix">
+		
+		
+		
+		
+	</div>
+		<p class="copyright">Powered by <a href="http://hexo.io" target="_blank" title="hexo">hexo</a> and Theme by <a href="https://github.com/wizicer/iceman" target="_blank" title="Iceman">Iceman</a> © 2016 
+		
+		<a href="http://baogege.info" target="_blank" title="Xubao">Xubao</a>
+		
+		</p>
+</div>
+</footer>
+    <script src="/js/jquery-2.1.0.min.js"></script>
+<script type="text/javascript">
+$(document).ready(function(){ 
+  $('.navbar').click(function(){
+    $('header nav').toggleClass('shownav');
+  });
+  var myWidth = 0;
+  function getSize(){
+    if( typeof( window.innerWidth ) == 'number' ) {
+      myWidth = window.innerWidth;
+    } else if( document.documentElement && document.documentElement.clientWidth) {
+      myWidth = document.documentElement.clientWidth;
+    };
+  };
+  var m = $('#main'),
+      a = $('#asidepart'),
+      c = $('.closeaside'),
+      o = $('.openaside');
+  $(window).resize(function(){
+    getSize(); 
+    if (myWidth >= 1024) {
+      $('header nav').removeClass('shownav');
+    }else
+    {
+      m.removeClass('moveMain');
+      a.css('display', 'block').removeClass('fadeOut');
+      o.css('display', 'none');
+      
+      $('#toc.toc-aside').css('display', 'none');
+        
+    }
+  });
+  c.click(function(){
+    a.addClass('fadeOut').css('display', 'none');
+    o.css('display', 'block').addClass('fadeIn');
+    m.addClass('moveMain');
+  });
+  o.click(function(){
+    o.css('display', 'none').removeClass('beforeFadeIn');
+    a.css('display', 'block').removeClass('fadeOut').addClass('fadeIn');      
+    m.removeClass('moveMain');
+  });
+  $(window).scroll(function(){
+    o.css("top",Math.max(80,260-$(this).scrollTop()));
+  });
+});
+</script>
+
+<script type="text/javascript">
+$(document).ready(function(){ 
+  var ai = $('.article-content>iframe'),
+      ae = $('.article-content>embed'),
+      t  = $('#toc'),
+      h  = $('article h2')
+      ah = $('article h2'),
+      ta = $('#toc.toc-aside'),
+      o  = $('.openaside'),
+      c  = $('.closeaside');
+  if(ai.length>0){
+    ai.wrap('<div class="video-container" />');
+  };
+  if(ae.length>0){
+   ae.wrap('<div class="video-container" />');
+  };
+  if(ah.length==0){
+    t.css('display','none');
+  }else{
+    c.click(function(){
+      ta.css('display', 'block').addClass('fadeIn');
+    });
+    o.click(function(){
+      ta.css('display', 'none');
+    });
+    $(window).scroll(function(){
+      ta.css("top",Math.max(140,320-$(this).scrollTop()));
+    });
+  };
+});
+</script>
+
+
+<script type="text/javascript">
+$(document).ready(function(){ 
+  var $this = $('.share'),
+      url = $this.attr('data-url'),
+      encodedUrl = encodeURIComponent(url),
+      title = $this.attr('data-title'),
+      tsina = $this.attr('data-tsina');
+  var html = [
+  '<a href="#" class="overlay" id="qrcode"></a>',
+  '<div class="qrcode clearfix"><span>扫描二维码分享到微信朋友圈</span><a class="qrclose" href="#share"></a><strong>Loading...Please wait</strong><img id="qrcode-pic" data-src="http://s.jiathis.com/qrcode.php?url=' + encodedUrl + '"/></div>',
+  '<a href="#textlogo" class="article-back-to-top" title="Top"></a>',
+  '<a href="https://www.facebook.com/sharer.php?u=' + encodedUrl + '" class="article-share-facebook" target="_blank" title="Facebook"></a>',
+  '<a href="#qrcode" class="article-share-qrcode" title="QRcode"></a>',
+  '<a href="https://twitter.com/intent/tweet?url=' + encodedUrl + '" class="article-share-twitter" target="_blank" title="Twitter"></a>',
+  '<a href="http://service.weibo.com/share/share.php?title='+title+'&url='+encodedUrl +'&ralateUid='+ tsina +'&searchPic=true&style=number' +'" class="article-share-weibo" target="_blank" title="Weibo"></a>',
+  '<span title="Share to"></span>'
+  ].join('');
+  $this.append(html);
+  $('.article-share-qrcode').click(function(){
+    var imgSrc = $('#qrcode-pic').attr('data-src');
+    $('#qrcode-pic').attr('src', imgSrc);
+    $('#qrcode-pic').load(function(){
+        $('.qrcode strong').text(' ');
+    });
+  });
+});     
+</script>
+
+
+<script type="text/javascript">
+  var duoshuoQuery = {short_name:"Baogege"};
+  (function() {
+    var ds = document.createElement('script');
+    ds.type = 'text/javascript';ds.async = true;
+    ds.src = '//static.duoshuo.com/embed.js';
+    ds.charset = 'UTF-8';
+    (document.getElementsByTagName('head')[0] 
+    || document.getElementsByTagName('body')[0]).appendChild(ds);
+  })();
+</script> 
+
+
+
+
+
+
+
+
+
+<script type="text/x-mathjax-config"> 
+MathJax.Hub.Config({ 
+  tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']]} 
+}); 
+</script>
+<script type="text/javascript"
+   src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+</script>
+
+<script type="text/javascript">
+var _bdhmProtocol = (("https:" == document.location.protocol) ? " https://" : " http://");
+document.write(unescape("%3Cscript src='" + _bdhmProtocol + "hm.baidu.com/h.js%3Fa094902cfc57b8fb958cad00066e4dfc' type='text/javascript'%3E%3C/script%3E"));
+</script>
+
+  </body>
+</html>
+
