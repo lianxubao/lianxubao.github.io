@@ -4,7 +4,7 @@
   <subtitle><![CDATA[所谓的成功只有一个，就是按照自己的方式去度过人生]]></subtitle>
   <link href="/atom.xml" rel="self"/>
   <link href="http://baogege.info/"/>
-  <updated>2016-05-07T12:49:34.470Z</updated>
+  <updated>2016-05-16T15:15:33.954Z</updated>
   <id>http://baogege.info/</id>
   
   <author>
@@ -13,6 +13,46 @@
   </author>
   
   <generator uri="http://zespia.tw/hexo/">Hexo</generator>
+  
+  <entry>
+    <title><![CDATA[下一个购物篮推荐中的层次表达模型]]></title>
+    <link href="http://baogege.info/2016/05/16/learning-hierarchical-representation-for-next-basket-recommendation/"/>
+    <id>http://baogege.info/2016/05/16/learning-hierarchical-representation-for-next-basket-recommendation/</id>
+    <published>2016-05-16T14:43:11.000Z</published>
+    <updated>2016-05-16T14:55:55.000Z</updated>
+    <content type="html"><![CDATA[<blockquote>
+<p>最近准备主讲阅读到了一篇论文“Learning Hierarchical Representation Model for Next Basket Recommendation”，文中主要提出了一种解决下一个购物篮推荐问题的层次表达模型(Hierarchical Representation Model, HRM)，很好地借鉴了当前自然语言处理领域中词向量的思想，引入深层模型把用户和商品表达成一个连续的低维向量，来进行预测用户在下一个时刻对商品是否发生购买行为。论文作者来自于中科院计算所，发表在顶级会议SIGIR，本文介绍一下该论文的主要思想及自己的一些理解。</p>
+</blockquote>
+<h1 id="问题描述">问题描述</h1>
+<p>推荐系统的任务主要是根据用户对商品的一些反馈行为预测其对未知商品的兴趣或偏好，当前推荐系统的研究中主要有两类问题，第一类是评分预测，即根据用户对商品的评分记录来预测用户对未知商品的评分，此问题是前些年推荐系统的热门研究方向之一，其中以Netflix百万美元比赛中代表性的矩阵分解模型在这一问题中取得了巨大的成功；另一类称之为下一个购物篮推荐（Next Basket Recommendation）问题，根据用户的历史购买记录预测用户在下一时刻的购买行为，如下图所示，已知用户在t-1,t-2和t-3时刻购物篮中的购买的商品，目的是预测用户在t时刻在购物篮中购买商品的集合。<br><img src="/img/learning-hierarchical-representation-for-next-basket-recommendation/1.png" alt="下一个购物篮推荐示意图"></p>
+<h1 id="动机">动机</h1>
+<p>当前解决下一个购物篮推荐问题的方法分为两类，第一类称为时序推荐模型(Sequential Recommender)，大部分基于马尔可夫链，认为用户在下一时刻购买的商品是由于其在上一时刻购买过一些商品，因此可以建模为一个马尔可夫链，时序推荐模型可以捕获到用户的时序行为，如用户在t-1时刻购买过南瓜，那么在t时刻很可能会购买马铃薯，因为他们都是蔬菜。第二类称为总体推荐模型(General Recommender)，在预测用户在下一时刻购买的商品时综合考虑用户的整个购买历史记录，总体推荐模型可以捕获到用户的总体偏好。</p>
+<p>可以看到这两类方法都有一定的缺陷，一种更好的方案是能够综合考虑用户的时序行为和总体兴趣偏好，例如可以将时序推荐的结果和总体推荐的结果做一个线性组合，如下图所示，一个人的总体偏好喜欢科幻电影，近期看了Scarlett Johansson导演的喜剧，下一个时刻即很可能想看Scarlett Johansson导演的科幻电影，但是在这种线性组合的情况下此电影得到的排名却并不高。另外Steffen Rendle等人提出了一种分解个性化马尔可夫链(Factorizing Personalized Markov Chain, FPMC)很好地考虑了这两个方面，但是此方法基于这样的假设，即用户和商品的潜在特征各个因子是独立的，并且在生成推荐结果是他们是一种线性的关系，但是在现实生活中往往这种线性关系的假设却并不一定成立。例如用户在上一时刻购买了南瓜下一时刻很可能会买马铃薯等水果，另外用户在上一时刻买了糖果在下一时刻很可能会买巧克力等零食，但是如果将这两者组合起来用户在上一时刻同时购买了南瓜和糖果，在下一时刻则很有可能买万圣节服饰了，因为南瓜和糖果正好是万圣节都需要的东西，因此他们可能并不是一种线性的关系。</p>
+<p><img src="/img/learning-hierarchical-representation-for-next-basket-recommendation/2.png" alt="时序推荐和总体推荐的线性组合示意图"></p>
+<h1 id="层次表达模型">层次表达模型</h1>
+<p>基于以上分析，该文章提出了一种层次表达模型，模型解决两个问题，第一是综合考虑用户的时序行为和总体偏好；第二是要捕获用户兴趣向量和商品特征向量的非线性关系。下面从模型结构及其训练预测方法两个方面进行描述。</p>
+<h2 id="模型结构">模型结构</h2>
+<p>层次表达模型将用户和商品表达成一个连续空间的低维向量，其模型结构如下图所示，可以看到模型一共分为三层，第一层是用户在上一时刻购买的商品集合，将这些商品的向量做了一个聚合操作；第二层将用户向量和第一层聚合的结果再做了一次聚合操作；第二次的聚合结果输入至第三层，第三层为Softmax层，将等预测商品的向量和第二次聚合得到的向量进行点积操作再经过Softmax函数即得到该商品的预测概率。<br><img src="img/learning-hierarchical-representation-for-next-basket-recommendation/3.png" alt="层次表达模型结构"><br>两次聚合可表达为如下公式所示：</p>
+<p><img src="/img/learning-hierarchical-representation-for-next-basket-recommendation/4.png" alt=""><br>其中f1和f2分别为第一次和第二次的聚合函数，第一次对上一时刻商品集合进行聚合，第二次对用户向量和第一次聚合结果进行再次聚合，聚合函数有两种，熟悉卷积神经网络(Convolutional Neural Network, CNN)可知道在池化操作中有两种，分别是平均值池化(Average Pooling)和最大值池化(Max Pooling)。类似地，这里使用到的聚合操作也是这两种。显然在这两层聚合函数中组合使用这两种聚合函数可得到4个版本的层次表达模型，分别是HRM(Avg,Avg)、HRM(Avg,Max)<br>、HRM(Max,Avg)和HRM(Max,Max)，文中的实验部分对这四个版本的模型进行了细致的分析。<br>预测Softmax函数如下公式所示：</p>
+<p><img src="/img/learning-hierarchical-representation-for-next-basket-recommendation/5.png" alt=""><br>可以看到，预测时需要对整个商品集合进行计算，是一个复杂度很高的操作，将聚合得到的向量和待预测的商品向量的内积作为预测值，再通过Softmax函数转化为概率形式。</p>
+<h2 id="学习和预测">学习和预测</h2>
+<p>知道了此层次表达模型的结构，便可得到其损失函数，进而通过梯度下降方法进行参数优化了，由上文可知，HRM输出层经过Softmax函数将预测当作一个分类模型，通过最大化似然概率再取对数可得到其优化的对数概率损失函数，如下公式所示。<br><img src="/img/learning-hierarchical-representation-for-next-basket-recommendation/6.png" alt=""><br>由于在求解p(i|u,T_t-1)时需要对整个商品集合的所有商品都进行计算，模型的复杂度过高，因此文中对此进行了优化，即对模型的Softmax输出层进行了负采样操作(Negative Sampling)，在模型输出层并不考虑所有的商品，而是随机地采样一个负样本，因此经过负采样的损失函数可表示为如下公式所示。</p>
+<p><img src="/img/learning-hierarchical-representation-for-next-basket-recommendation/7.png" alt=""><br>式中求和符号内的第一项为正样本的概率，可以看到这里不再经过Softmax函数，而是只经过sigmoid函数作为其预测概率值，第二项为随机采样到的负样本的概率值，k表示采样到负样本数量，代表该负样本复制k倍，最后一项为防止过拟合的正则化项。通过优化负采样之后的损失函数对模型参数进行优化，优化的参数为用户和商品的特征向量，模型训练时用户和商品特征的维度需要作为超参数给定。</p>
+<h1 id="实验结果与结论">实验结果与结论</h1>
+<p>文中做了多组实验对其方法进行验证，首先是和Baseline方法（包括流行度、马尔可夫链、分解个性化马尔可夫链FPMC和非负矩阵分解NMF），针对不同群体的用户（不活跃、中度活跃、活跃）都进行了验证；再是文中提到的组合不同聚合函数得到的4个版本的HRM模型的对比，如下图所示；还有是对负采样样本个数k对实验结果的影响进行了分析，实验细致充分，分析很到位，很值得学习！<br><img src="/img/learning-hierarchical-representation-for-next-basket-recommendation/8.png" alt="在3个数据集中4个版本的HRM实验结果对比"><br>由于Avg聚合仍然是一种线性的操作、Max聚合却是非线性的操作，由上图可知，两次聚合都用Max操作是可以得到更好的结果，说明了用户和商品的潜在因子之间确实存在着非线性的关系，HRM更能捕获到这种联系。而两种聚合都用Avg操作的情况却得到了最差的结果，这时模型退化到了和普通FPMC或NMF一样的情况，只能发现因子之间的线性关系。</p>
+]]></content>
+    <summary type="html">
+    <![CDATA[<blockquote>
+<p>最近准备主讲阅读到了一篇论文“Learning Hierarchical Representation Model for Next Basket Recommendation”，文中主要提出了一种解决下一个购物篮推荐问题的层次表达模型(Hiera]]>
+    </summary>
+    
+      <category term="推荐系统" scheme="http://baogege.info/tags/%E6%8E%A8%E8%8D%90%E7%B3%BB%E7%BB%9F/"/>
+    
+      <category term="层次表达模型" scheme="http://baogege.info/tags/%E5%B1%82%E6%AC%A1%E8%A1%A8%E8%BE%BE%E6%A8%A1%E5%9E%8B/"/>
+    
+      <category term="推荐系统" scheme="http://baogege.info/categories/%E6%8E%A8%E8%8D%90%E7%B3%BB%E7%BB%9F/"/>
+    
+  </entry>
   
   <entry>
     <title><![CDATA[使用HttpClient模拟登录百度账号]]></title>

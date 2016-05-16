@@ -4,14 +4,12 @@
 <head>
   <meta charset="UTF-8">
   
-    <title>排序学习在个性化推荐中的应用 | Xubao&#39;s blog</title>
+    <title>下一个购物篮推荐中的层次表达模型 | Xubao&#39;s blog</title>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=3, minimum-scale=1">
     
     <meta name="author" content="Xubao">
     
-    <meta name="description" content="排序学习简介
-
-排序学习是信息检索领域应用较为广泛的一种方法，传统的检索模型靠人工拟合排序公式，所考虑的因素并不多，主要是利用词频、逆文档频率和文档长度这几个因子来人工拟合排序公式。并通过不断的实验确定最佳的参数组合，以此来形成相关性打分函数。排序学习则与此思路不同，最合理的排序公式由机器自动学习获">
+    <meta name="description" content="最近准备主讲阅读到了一篇论文“Learning Hierarchical Representation Model for Next Basket Recommendation”，文中主要提出了一种解决下一个购物篮推荐问题的层次表达模型(Hierarchical Representation Mod">
     
     
     
@@ -80,15 +78,15 @@
 		<header class="article-info clearfix">
   <h1 itemprop="name">
     
-      <a href="/2014/10/19/learning-to-rank-for-recommender-system/" title="排序学习在个性化推荐中的应用" itemprop="url">排序学习在个性化推荐中的应用</a>
+      <a href="/2016/05/16/learning-hierarchical-representation-for-next-basket-recommendation/" title="下一个购物篮推荐中的层次表达模型" itemprop="url">下一个购物篮推荐中的层次表达模型</a>
   </h1>
   <p class="article-author">By
     
       <a href="http://baogege.info" title="Xubao">Xubao</a>
     </p>
   <p class="article-time">
-    <time datetime="2014-10-19T12:44:29.000Z" itemprop="datePublished">10月 19 2014</time>
-    更新日期:<time datetime="2016-05-06T03:19:30.000Z" itemprop="dateModified">5月 6 2016</time>
+    <time datetime="2016-05-16T14:43:11.000Z" itemprop="datePublished">5月 16 2016</time>
+    更新日期:<time datetime="2016-05-16T14:55:55.000Z" itemprop="dateModified">5月 16 2016</time>
     
   </p>
 </header>
@@ -98,38 +96,36 @@
 		
 		<div id="toc" class="toc-article">
 			<strong class="toc-title">文章目录</strong>
-		<ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#排序学习简介"><span class="toc-number">1.</span> <span class="toc-text">排序学习简介</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#个性化推荐中应用排序学习"><span class="toc-number">2.</span> <span class="toc-text">个性化推荐中应用排序学习</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#基于排序学习的推荐方法"><span class="toc-number">3.</span> <span class="toc-text">基于排序学习的推荐方法</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#Point-wise"><span class="toc-number">3.1.</span> <span class="toc-text">Point-wise</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Pair-wise"><span class="toc-number">3.2.</span> <span class="toc-text">Pair-wise</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#List-wise"><span class="toc-number">3.3.</span> <span class="toc-text">List-wise</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#参考文献"><span class="toc-number">4.</span> <span class="toc-text">参考文献</span></a></li></ol>
+		<ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#问题描述"><span class="toc-number">1.</span> <span class="toc-text">问题描述</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#动机"><span class="toc-number">2.</span> <span class="toc-text">动机</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#层次表达模型"><span class="toc-number">3.</span> <span class="toc-text">层次表达模型</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#模型结构"><span class="toc-number">3.1.</span> <span class="toc-text">模型结构</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#学习和预测"><span class="toc-number">3.2.</span> <span class="toc-text">学习和预测</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#实验结果与结论"><span class="toc-number">4.</span> <span class="toc-text">实验结果与结论</span></a></li></ol>
 		</div>
 		
-		<h1 id="排序学习简介">排序学习简介</h1>
-<hr>
-<p>排序学习是信息检索领域应用较为广泛的一种方法，传统的检索模型靠人工拟合排序公式，所考虑的因素并不多，主要是利用词频、逆文档频率和文档长度这几个因子来人工拟合排序公式。并通过不断的实验确定最佳的参数组合，以此来形成相关性打分函数。排序学习则与此思路不同，最合理的排序公式由机器自动学习获得，而人则需要给机器学习提供训练数据。就是说排序学习是使用机器学习的方法直接优化排序列表，得到一个排序函数，从来对特定查询的相关文档进行排序，其目的是为了得到一个最优的文档排序。</p>
-<h1 id="个性化推荐中应用排序学习">个性化推荐中应用排序学习</h1>
-<hr>
-<p>目前推荐系统的研究主要分为两大方向，其中一类为评分预测问题；另一类为Top-K推荐问题。传统基于记忆的方法（User-CF，Item-CF），基于模型的方法（基本矩阵分解，带偏置矩阵分解，概率矩阵分解）等都是解决评分预测问题，大多都通过优化评分误差（均方根误差，RMSE）来训练模型。如果要进行Top-K列表推荐则只能通过预测评分降序排列得到Top-K列表，但是我们很容易知道，好的评分准确率并不一定能产生一个好的排序列表，因而这些方法并不能得到一个好的排序。Top-K推荐其实更加贴近用户需求，因为用户关注的往往是一个列表，尤其是排序在最前面的Item列表，通过直接优化Top-K列表往往能使推荐系统得到更好的用户体验。</p>
-<p>信息检索领域中的排序学习方法以查询-文档特征对作为输入，通过学习一个排序函数对新的查询-文档对进行相关性预测，针对特定查询得到一个排序好的文档列表，其流程图如下图所示。类似地，在个性化推荐领域中，目的是为给特定用户提供一个感兴趣的Item列表，用户关注的往往是排在前几位的Item，因此这也是一个排序问题，将查询-文档对类似为User-Item对，可以借鉴排序学习的思想直接优化Item的排序。</p>
-<p><img src="/img/learning-to-rank-for-recommender-system/ltr4rs.png" alt="排序学习在推荐中的应用示意图"></p>
-<h1 id="基于排序学习的推荐方法">基于排序学习的推荐方法</h1>
-<hr>
-<p>信息检索中的排序学习方法需要输入显性的文档特征，而个性化推荐中不论是User还是Item都没有显性特征作为输入，输入特征较为简单，一般都只有User-Item评分记录。因此在个性化推荐领域应用的排序学习方法和信息检索领域的排序学习还是有一定区别的，需要另辟蹊径。和基本排序学习类似，基于排序学习的推荐方法也主要分为三大类，分别是Point-wise，Pair-wise和List-wise，下面对这三种方法分别作简单介绍。</p>
-<h2 id="Point-wise">Point-wise</h2>
-<p>传统的协同过滤，矩阵分解(<a href="http://baogege.info/2014/05/27/matrix-factorization-in-recommender-systems/" target="_blank" rel="external">了解更多关于矩阵分解</a>)等推荐方法都是基于Point-wise的方法，即只考虑单个Item的评分预测准确率，先进行评分预测再根据预测出来的评分降序排列得到一个推荐列表。这种方法没有明显考虑Item和Item之间的排序关系，因此并没有直接优化Item的排序，评分预测实际上是一个回归问题。</p>
-<h2 id="Pair-wise">Pair-wise</h2>
-<p>优化Item-Item偏序关系，预测时得到一个偏序矩阵，再将偏序矩阵转化成一个完整的排序列表。其示意图如下所示，图中“+”号表示用户对该行的Item喜好程度高于该列所代表的Item，最后将Item之间的偏序关系按照某种方法转化为一个完整的Item排序列表。</p>
-<p><img src="/img/learning-to-rank-for-recommender-system/pairwiseltrrs.png" alt="Pair-wise排序学习在推荐中的应用示意图"></p>
-<h2 id="List-wise">List-wise</h2>
-<p>List-wise方法选择直接优化整个排序列表，如直接优化衡量排序的指标NDCG等等，代表性的有Markus Weimer等提出的COFI-RANK，详见参考文献1，其示意图如下所示。训练出来的函数可直接对整个Item排序。</p>
-<p><img src="/img/learning-to-rank-for-recommender-system/listwiseltrrs.png" alt="List-wise排序学习在推荐中的应用示意图"></p>
-<h1 id="参考文献">参考文献</h1>
-<hr>
-<p><a href="http://machinelearning.wustl.edu/mlpapers/paper_files/NIPS2005_588.pdf" target="_blank" rel="external">1.Maximum Margin Matrix Factorization for Collaborative Ranking</a><br><a href="http://dl.acm.org/citation.cfm?id=2508063" target="_blank" rel="external">2.Learning to Rank for Recommender System</a></p>
+		<blockquote>
+<p>最近准备主讲阅读到了一篇论文“Learning Hierarchical Representation Model for Next Basket Recommendation”，文中主要提出了一种解决下一个购物篮推荐问题的层次表达模型(Hierarchical Representation Model, HRM)，很好地借鉴了当前自然语言处理领域中词向量的思想，引入深层模型把用户和商品表达成一个连续的低维向量，来进行预测用户在下一个时刻对商品是否发生购买行为。论文作者来自于中科院计算所，发表在顶级会议SIGIR，本文介绍一下该论文的主要思想及自己的一些理解。</p>
+</blockquote>
+<h1 id="问题描述">问题描述</h1>
+<p>推荐系统的任务主要是根据用户对商品的一些反馈行为预测其对未知商品的兴趣或偏好，当前推荐系统的研究中主要有两类问题，第一类是评分预测，即根据用户对商品的评分记录来预测用户对未知商品的评分，此问题是前些年推荐系统的热门研究方向之一，其中以Netflix百万美元比赛中代表性的矩阵分解模型在这一问题中取得了巨大的成功；另一类称之为下一个购物篮推荐（Next Basket Recommendation）问题，根据用户的历史购买记录预测用户在下一时刻的购买行为，如下图所示，已知用户在t-1,t-2和t-3时刻购物篮中的购买的商品，目的是预测用户在t时刻在购物篮中购买商品的集合。<br><img src="/img/learning-hierarchical-representation-for-next-basket-recommendation/1.png" alt="下一个购物篮推荐示意图"></p>
+<h1 id="动机">动机</h1>
+<p>当前解决下一个购物篮推荐问题的方法分为两类，第一类称为时序推荐模型(Sequential Recommender)，大部分基于马尔可夫链，认为用户在下一时刻购买的商品是由于其在上一时刻购买过一些商品，因此可以建模为一个马尔可夫链，时序推荐模型可以捕获到用户的时序行为，如用户在t-1时刻购买过南瓜，那么在t时刻很可能会购买马铃薯，因为他们都是蔬菜。第二类称为总体推荐模型(General Recommender)，在预测用户在下一时刻购买的商品时综合考虑用户的整个购买历史记录，总体推荐模型可以捕获到用户的总体偏好。</p>
+<p>可以看到这两类方法都有一定的缺陷，一种更好的方案是能够综合考虑用户的时序行为和总体兴趣偏好，例如可以将时序推荐的结果和总体推荐的结果做一个线性组合，如下图所示，一个人的总体偏好喜欢科幻电影，近期看了Scarlett Johansson导演的喜剧，下一个时刻即很可能想看Scarlett Johansson导演的科幻电影，但是在这种线性组合的情况下此电影得到的排名却并不高。另外Steffen Rendle等人提出了一种分解个性化马尔可夫链(Factorizing Personalized Markov Chain, FPMC)很好地考虑了这两个方面，但是此方法基于这样的假设，即用户和商品的潜在特征各个因子是独立的，并且在生成推荐结果是他们是一种线性的关系，但是在现实生活中往往这种线性关系的假设却并不一定成立。例如用户在上一时刻购买了南瓜下一时刻很可能会买马铃薯等水果，另外用户在上一时刻买了糖果在下一时刻很可能会买巧克力等零食，但是如果将这两者组合起来用户在上一时刻同时购买了南瓜和糖果，在下一时刻则很有可能买万圣节服饰了，因为南瓜和糖果正好是万圣节都需要的东西，因此他们可能并不是一种线性的关系。</p>
+<p><img src="/img/learning-hierarchical-representation-for-next-basket-recommendation/2.png" alt="时序推荐和总体推荐的线性组合示意图"></p>
+<h1 id="层次表达模型">层次表达模型</h1>
+<p>基于以上分析，该文章提出了一种层次表达模型，模型解决两个问题，第一是综合考虑用户的时序行为和总体偏好；第二是要捕获用户兴趣向量和商品特征向量的非线性关系。下面从模型结构及其训练预测方法两个方面进行描述。</p>
+<h2 id="模型结构">模型结构</h2>
+<p>层次表达模型将用户和商品表达成一个连续空间的低维向量，其模型结构如下图所示，可以看到模型一共分为三层，第一层是用户在上一时刻购买的商品集合，将这些商品的向量做了一个聚合操作；第二层将用户向量和第一层聚合的结果再做了一次聚合操作；第二次的聚合结果输入至第三层，第三层为Softmax层，将等预测商品的向量和第二次聚合得到的向量进行点积操作再经过Softmax函数即得到该商品的预测概率。<br><img src="img/learning-hierarchical-representation-for-next-basket-recommendation/3.png" alt="层次表达模型结构"><br>两次聚合可表达为如下公式所示：</p>
+<p><img src="/img/learning-hierarchical-representation-for-next-basket-recommendation/4.png" alt=""><br>其中f1和f2分别为第一次和第二次的聚合函数，第一次对上一时刻商品集合进行聚合，第二次对用户向量和第一次聚合结果进行再次聚合，聚合函数有两种，熟悉卷积神经网络(Convolutional Neural Network, CNN)可知道在池化操作中有两种，分别是平均值池化(Average Pooling)和最大值池化(Max Pooling)。类似地，这里使用到的聚合操作也是这两种。显然在这两层聚合函数中组合使用这两种聚合函数可得到4个版本的层次表达模型，分别是HRM(Avg,Avg)、HRM(Avg,Max)<br>、HRM(Max,Avg)和HRM(Max,Max)，文中的实验部分对这四个版本的模型进行了细致的分析。<br>预测Softmax函数如下公式所示：</p>
+<p><img src="/img/learning-hierarchical-representation-for-next-basket-recommendation/5.png" alt=""><br>可以看到，预测时需要对整个商品集合进行计算，是一个复杂度很高的操作，将聚合得到的向量和待预测的商品向量的内积作为预测值，再通过Softmax函数转化为概率形式。</p>
+<h2 id="学习和预测">学习和预测</h2>
+<p>知道了此层次表达模型的结构，便可得到其损失函数，进而通过梯度下降方法进行参数优化了，由上文可知，HRM输出层经过Softmax函数将预测当作一个分类模型，通过最大化似然概率再取对数可得到其优化的对数概率损失函数，如下公式所示。<br><img src="/img/learning-hierarchical-representation-for-next-basket-recommendation/6.png" alt=""><br>由于在求解p(i|u,T_t-1)时需要对整个商品集合的所有商品都进行计算，模型的复杂度过高，因此文中对此进行了优化，即对模型的Softmax输出层进行了负采样操作(Negative Sampling)，在模型输出层并不考虑所有的商品，而是随机地采样一个负样本，因此经过负采样的损失函数可表示为如下公式所示。</p>
+<p><img src="/img/learning-hierarchical-representation-for-next-basket-recommendation/7.png" alt=""><br>式中求和符号内的第一项为正样本的概率，可以看到这里不再经过Softmax函数，而是只经过sigmoid函数作为其预测概率值，第二项为随机采样到的负样本的概率值，k表示采样到负样本数量，代表该负样本复制k倍，最后一项为防止过拟合的正则化项。通过优化负采样之后的损失函数对模型参数进行优化，优化的参数为用户和商品的特征向量，模型训练时用户和商品特征的维度需要作为超参数给定。</p>
+<h1 id="实验结果与结论">实验结果与结论</h1>
+<p>文中做了多组实验对其方法进行验证，首先是和Baseline方法（包括流行度、马尔可夫链、分解个性化马尔可夫链FPMC和非负矩阵分解NMF），针对不同群体的用户（不活跃、中度活跃、活跃）都进行了验证；再是文中提到的组合不同聚合函数得到的4个版本的HRM模型的对比，如下图所示；还有是对负采样样本个数k对实验结果的影响进行了分析，实验细致充分，分析很到位，很值得学习！<br><img src="/img/learning-hierarchical-representation-for-next-basket-recommendation/8.png" alt="在3个数据集中4个版本的HRM实验结果对比"><br>由于Avg聚合仍然是一种线性的操作、Max聚合却是非线性的操作，由上图可知，两次聚合都用Max操作是可以得到更好的结果，说明了用户和商品的潜在因子之间确实存在着非线性的关系，HRM更能捕获到这种联系。而两种聚合都用Avg操作的情况却得到了最差的结果，这时模型退化到了和普通FPMC或NMF一样的情况，只能发现因子之间的线性关系。</p>
   
 	</div>
 		<footer class="article-footer clearfix">
 
   <div class="article-tags">
   
-  <span></span> <a href="/tags/排序学习/">排序学习</a><a href="/tags/推荐系统/">推荐系统</a>
+  <span></span> <a href="/tags/推荐系统/">推荐系统</a><a href="/tags/层次表达模型/">层次表达模型</a>
   </div>
 
 
@@ -142,7 +138,7 @@
 
 <div class="article-share" id="share">
 
-  <div data-url="http://baogege.info/2014/10/19/learning-to-rank-for-recommender-system/" data-title="排序学习在个性化推荐中的应用 | Xubao&#39;s blog" data-tsina="1849026987" class="share clearfix">
+  <div data-url="http://baogege.info/2016/05/16/learning-hierarchical-representation-for-next-basket-recommendation/" data-title="下一个购物篮推荐中的层次表达模型 | Xubao&#39;s blog" data-tsina="1849026987" class="share clearfix">
   </div>
 
 </div>
@@ -153,19 +149,11 @@
 	
 <nav class="article-nav clearfix">
  
- <div class="prev" >
- <a href="/2014/10/19/introduction-to-netflix/" title="Netflix公司的前世今生">
-  <strong>PREVIOUS:</strong><br/>
-  <span>
-  Netflix公司的前世今生</span>
-</a>
-</div>
-
 
 <div class="next">
-<a href="/2014/10/19/matrix-factorization-in-recommender-systems/"  title="个性化推荐中的矩阵分解技术">
+<a href="/2016/04/21/baidu-login-with-httpclient/"  title="使用HttpClient模拟登录百度账号">
  <strong>NEXT:</strong><br/> 
- <span>个性化推荐中的矩阵分解技术
+ <span>使用HttpClient模拟登录百度账号
 </span>
 </a>
 </div>
@@ -175,7 +163,7 @@
 	
 <section class="comment">
 	<!-- 多说评论框 start -->
-	<div class="ds-thread" data-thread-key="post-learning-to-rank-for-recommender-system" data-title="排序学习在个性化推荐中的应用" data-url="http://baogege.info/2014/10/19/learning-to-rank-for-recommender-system/"></div>
+	<div class="ds-thread" data-thread-key="post-learning-hierarchical-representation-for-next-basket-recommendation" data-title="下一个购物篮推荐中的层次表达模型" data-url="http://baogege.info/2016/05/16/learning-hierarchical-representation-for-next-basket-recommendation/"></div>
 <!-- 多说评论框 end -->
 <!-- 多说公共JS代码 start (一个网页只需插入一次) -->
 <script type="text/javascript">
@@ -198,7 +186,7 @@ var duoshuoQuery = {short_name:"baogege"};
 
   <div id="toc" class="toc-aside">
   <strong class="toc-title">文章目录</strong>
-  <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#排序学习简介"><span class="toc-number">1.</span> <span class="toc-text">排序学习简介</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#个性化推荐中应用排序学习"><span class="toc-number">2.</span> <span class="toc-text">个性化推荐中应用排序学习</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#基于排序学习的推荐方法"><span class="toc-number">3.</span> <span class="toc-text">基于排序学习的推荐方法</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#Point-wise"><span class="toc-number">3.1.</span> <span class="toc-text">Point-wise</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Pair-wise"><span class="toc-number">3.2.</span> <span class="toc-text">Pair-wise</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#List-wise"><span class="toc-number">3.3.</span> <span class="toc-text">List-wise</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#参考文献"><span class="toc-number">4.</span> <span class="toc-text">参考文献</span></a></li></ol>
+  <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#问题描述"><span class="toc-number">1.</span> <span class="toc-text">问题描述</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#动机"><span class="toc-number">2.</span> <span class="toc-text">动机</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#层次表达模型"><span class="toc-number">3.</span> <span class="toc-text">层次表达模型</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#模型结构"><span class="toc-number">3.1.</span> <span class="toc-text">模型结构</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#学习和预测"><span class="toc-number">3.2.</span> <span class="toc-text">学习和预测</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#实验结果与结论"><span class="toc-number">4.</span> <span class="toc-text">实验结果与结论</span></a></li></ol>
   </div>
 
 <div id="asidepart">
